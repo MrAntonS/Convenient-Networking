@@ -1,0 +1,11 @@
+Plan.txt
+/TelNet
+/output
+/__pycache__
+/img
+API_CONST.py
+/Templates/*
+!/Templates/Templates.txt
+OT6_Case_fetching.py
+idea
+MegaPutty.zip
