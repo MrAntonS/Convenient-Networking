@@ -1,4 +1,3 @@
-from turtle import isvisible
 from LibraryImport import *
 
 
