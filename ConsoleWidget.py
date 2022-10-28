@@ -22,6 +22,7 @@ class ConsoleWidget(QWidget):
         lostConnection = pyqtSignal(bool)
         finished = pyqtSignal()
         timeUpdate = pyqtSignal(float)
+        checkVisibility = pyqtSignal()
 
         def __init__(self, tn) -> None:
             self.tn = tn
@@ -31,6 +32,9 @@ class ConsoleWidget(QWidget):
             self.checkTimer.setInterval(50)
             self.checkTimer.timeout.connect(self.send_time)
             self.checkTimer.start()
+            self.UpdateTimer = QTimer()
+            self.UpdateTimer.timeout.connect(self.UpdateCycle)
+            self.visible = True
             self.Protection = 600
             super(ConsoleWidget.Worker, self).__init__()
 
@@ -39,33 +43,38 @@ class ConsoleWidget(QWidget):
                 round(max(0, (self.Protection - (time.perf_counter() - self.AFKTIMER)) / 60), 1))
 
         def UpdateCycle(self):
-            while self.running:
+            self.checkVisibility.emit()
+            if not self.visible:
+                return
+            try:
+                reading = self.tn.read_eager()
                 try:
-                    reading = self.tn.read_eager()
-                    try:
-                        decod = reading.decode("utf-8")
-                    except Exception:
-                        decod = ""
-                    if decod != '':
-                        print(repr(decod))
-                        self.strSignal.emit(decod)
-                except Exception as e:
-                    if time.perf_counter() - self.AFKTIMER > self.Protection:
-                        self.running = False
-                        self.finished.emit()
-                        self.lostConnection.emit(True)
-                        return
-                    print(e, "@")
-                    self.checkTimer.stop()
-                    self.running = False
+                    decod = reading.decode("utf-8")
+                except Exception:
+                    decod = ""
+                if decod != '':
+                    print(repr(decod))
+                    self.strSignal.emit(decod)
+            except Exception as e:
+                if time.perf_counter() - self.AFKTIMER > self.Protection:
+                    self.UpdateTimer.stop()
                     self.finished.emit()
-                    self.lostConnection.emit(False)
+                    self.lostConnection.emit(True)
                     return
+                print(e, "@")
+                self.checkTimer.stop()
+                self.UpdateTimer.stop()
+                self.finished.emit()
+                self.lostConnection.emit(False)
+                return
+
+        def Stop(self):
             try:
                 self.tn.close()
             except Exception:
                 pass
             print("DONE")
+            self.UpdateTimer.stop()
             self.checkTimer.stop()
             self.finished.emit()
 
@@ -127,18 +136,19 @@ class ConsoleWidget(QWidget):
         self.th = QThread()
         self.worker.moveToThread(self.th)
         self.worker.finished.connect(self.KillProcess)
-        self.worker.strSignal.connect(self.stringQueue)
+        self.worker.strSignal.connect(self.UpdateUI)
         self.worker.lostConnection.connect(self.LostConnection)
         self.worker.timeUpdate.connect(self.UpdateLabel)
+        self.worker.checkVisibility.connect(self.CheckVisibility)
         self.th.finished.connect(self.th.deleteLater)
-        self.th.started.connect(self.worker.UpdateCycle)
+        self.th.started.connect(self.worker.UpdateTimer.start)
         self.th.start()
 
-    def stringQueue(self, string):
-        self.string += string
-        if self.isvisible():
-            self.UpdateUI(self.string)
-            self.string = ''
+    def CheckVisibility(self):
+        if self.isVisible():
+            self.worker.visible = True
+        else:
+            self.worker.visible = False
 
     # Checks if widget is visible and update a label of main widget that say how much more time connection is protected
     def UpdateLabel(self, timer):
@@ -210,6 +220,10 @@ class ConsoleWidget(QWidget):
         return super().keyPressEvent(a0)
 
     def closeEvent(self, a0: QCloseEvent) -> None:
+        try:    
+            self.tn.close()
+        except Exception:
+            pass
         try:
             self.noConnectionEmitter.stop()
             del self.noConnectionEmitter
@@ -217,15 +231,15 @@ class ConsoleWidget(QWidget):
             print(e)
             pass
         try:
+            self.worker.UpdateTimer.stop()
+        except Exception:
+            pass
+        try:
             self.updateTime.emit(-1)
         except Exception:
             pass
         try:
             self.th.quit()
-        except Exception as e:
-            print(e)
-        try:
-            self.worker.running = False
         except Exception as e:
             print(e)
         try:
@@ -261,10 +275,11 @@ class ConsoleWidget(QWidget):
                 self.worker.moveToThread(self.th)
                 self.worker.timeUpdate.connect(self.UpdateLabel)
                 self.worker.finished.connect(self.th.quit)
-                self.worker.strSignal.connect(self.stringQueue)
+                self.worker.strSignal.connect(self.UpdateUI)
                 self.worker.lostConnection.connect(self.LostConnection)
+                self.worker.checkVisibility.connect(self.CheckVisibility)
                 self.th.finished.connect(self.th.deleteLater)
-                self.th.started.connect(self.worker.UpdateCycle)
+                self.th.started.connect(self.worker.UpdateTimer.start)
                 self.th.start()
             else:
                 try:

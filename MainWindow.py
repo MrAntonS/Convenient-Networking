@@ -3,6 +3,7 @@ from ConsoleWidget import ConsoleWidget
 from ConnectionWidget import Connection_Window
 from TemplateWidget import TemplateWidget
 
+
 class MainWindow(QMainWindow):
     def __init__(self):
         # Call the inherited classes __init__ method
