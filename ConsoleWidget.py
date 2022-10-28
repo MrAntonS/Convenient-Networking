@@ -23,6 +23,7 @@ class ConsoleWidget(QWidget):
         finished = pyqtSignal()
         timeUpdate = pyqtSignal(float)
         checkVisibility = pyqtSignal()
+        StopBreakingSig = pyqtSignal()
 
         def __init__(self, tn) -> None:
             self.tn = tn
@@ -35,7 +36,9 @@ class ConsoleWidget(QWidget):
             self.UpdateTimer = QTimer()
             self.UpdateTimer.timeout.connect(self.UpdateCycle)
             self.visible = True
+            self.breaking = False
             self.Protection = 600
+            self.NotSeen = ''
             super(ConsoleWidget.Worker, self).__init__()
 
         def send_time(self):
@@ -44,17 +47,24 @@ class ConsoleWidget(QWidget):
 
         def UpdateCycle(self):
             self.checkVisibility.emit()
-            if not self.visible:
-                return
             try:
                 reading = self.tn.read_eager()
                 try:
                     decod = reading.decode("utf-8")
                 except Exception:
                     decod = ""
-                if decod != '':
-                    print(repr(decod))
-                    self.strSignal.emit(decod)
+                if self.NotSeen + decod != '':
+                    print(repr(self.NotSeen + decod))
+                    if self.visible:
+                        self.strSignal.emit(self.NotSeen + decod)
+                        self.NotSeen = ''
+                    else:
+                        self.NotSeen += decod
+                        if self.breaking:
+                            if re.search('rom.*>', decod) != None or re.search("load.*>", decod) or re.search("swit.*:", decod):
+                                print("Found one")
+                                self.StopBreakingSig.emit()
+
             except Exception as e:
                 if time.perf_counter() - self.AFKTIMER > self.Protection:
                     self.UpdateTimer.stop()
@@ -88,7 +98,6 @@ class ConsoleWidget(QWidget):
         self.num_for_escape_seq = None
         self.track_cursor = True
         self.Connected = False
-        self.breaking = False
         self.string = ''
         self.connect(self.host)
         self.BreakTimer = QTimer()
@@ -105,8 +114,8 @@ class ConsoleWidget(QWidget):
 
     def BreakToRommon(self):
         self.mainWidget.CursorColor = QColorConstants.White if self.mainWidget.CursorColor != QColorConstants.White else QColorConstants.Red
-        self.breaking = not self.breaking
-        if self.breaking:
+        self.worker.breaking = not self.worker.breaking
+        if self.worker.breaking:
             self.BreakTimer.start()
         else:
             self.BreakTimer.stop()
@@ -140,6 +149,7 @@ class ConsoleWidget(QWidget):
         self.worker.lostConnection.connect(self.LostConnection)
         self.worker.timeUpdate.connect(self.UpdateLabel)
         self.worker.checkVisibility.connect(self.CheckVisibility)
+        self.worker.StopBreakingSig.connect(self.BreakToRommon)
         self.th.finished.connect(self.th.deleteLater)
         self.th.started.connect(self.worker.UpdateTimer.start)
         self.th.start()
@@ -220,7 +230,7 @@ class ConsoleWidget(QWidget):
         return super().keyPressEvent(a0)
 
     def closeEvent(self, a0: QCloseEvent) -> None:
-        try:    
+        try:
             self.tn.close()
         except Exception:
             pass
@@ -278,6 +288,7 @@ class ConsoleWidget(QWidget):
                 self.worker.strSignal.connect(self.UpdateUI)
                 self.worker.lostConnection.connect(self.LostConnection)
                 self.worker.checkVisibility.connect(self.CheckVisibility)
+                self.worker.StopBreakingSig.connect(self.BreakToRommon)
                 self.th.finished.connect(self.th.deleteLater)
                 self.th.started.connect(self.worker.UpdateTimer.start)
                 self.th.start()
@@ -305,39 +316,6 @@ class ConsoleWidget(QWidget):
             self.initFailedUI()
             pass
 
-    def UpdateCycle(self):
-        try:
-            reading = self.tn.read_eager()
-            try:
-                decod = reading.decode("utf-8")
-            except Exception:
-                decod = ""
-            if self.breaking:
-                # print(re.match("load*>", decod), repr(decod))
-                if decod != '':
-                    print(repr(decod))
-                if re.search('rom.*>', decod) != None or re.search("load.*>", decod) or re.search("swit.*:", decod):
-                    print("Found one")
-                    self.BreakToRommon()
-            self.UpdateUI(decod)
-
-        except Exception as e:
-            print("Hello")
-            try:
-                host = self.host.replace("telnet://", '')
-                host = host.split(':')
-                self.tn = Telnet_(host[0], host[1], timeout=1)
-            except Exception as e:
-                print(e)
-                try:
-                    self.BreakTimer.stop()
-                except Exception:
-                    pass
-                self.mainLayout.takeAt(0)
-                self.mainWidget.close()
-                self.initFailedUI()
-                pass
-
     def initFailedUI(self):
         self.FailedLayout = QGridLayout()
         self.mainLayout.addLayout(self.FailedLayout)
@@ -362,7 +340,7 @@ class ConsoleWidget(QWidget):
         self.connect(self.host)
 
     def UpdateUI(self, string):
-        if self.breaking:
+        if self.worker.breaking:
             # print(re.match("load*>", decod), repr(decod))
             if re.search('rom.*>', string) != None or re.search("load.*>", string) or re.search("swit.*:", string):
                 print("Found one")
