@@ -57,9 +57,9 @@ class ConsoleWidget(QWidget):
                     # print(repr(self.NotSeen + decod))
                     if self.visible:
                         self.NotSeen = self.NotSeen + decod
-                        if len(self.NotSeen) > 30:
-                            self.strSignal.emit(self.NotSeen[:30])
-                            self.NotSeen = self.NotSeen[30:]
+                        if len(self.NotSeen) > 100:
+                            self.strSignal.emit(self.NotSeen[:100])
+                            self.NotSeen = self.NotSeen[100:]
                         else:
                             self.strSignal.emit(self.NotSeen)
                             self.NotSeen = ''
