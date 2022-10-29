@@ -27,7 +27,6 @@ class ConsoleWidget(QWidget):
 
         def __init__(self, tn) -> None:
             self.tn = tn
-            self.running = True
             self.AFKTIMER = time.perf_counter()
             self.checkTimer = QTimer()
             self.checkTimer.setInterval(50)
