@@ -54,10 +54,15 @@ class ConsoleWidget(QWidget):
                 except Exception:
                     decod = ""
                 if self.NotSeen + decod != '':
-                    print(repr(self.NotSeen + decod))
+                    # print(repr(self.NotSeen + decod))
                     if self.visible:
-                        self.strSignal.emit(self.NotSeen + decod)
-                        self.NotSeen = ''
+                        self.NotSeen = self.NotSeen + decod
+                        if len(self.NotSeen) > 30:
+                            self.strSignal.emit(self.NotSeen[:30])
+                            self.NotSeen = self.NotSeen[30:]
+                        else:
+                            self.strSignal.emit(self.NotSeen)
+                            self.NotSeen = ''
                     else:
                         self.NotSeen += decod
                         if self.breaking:
