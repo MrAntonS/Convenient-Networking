@@ -220,7 +220,7 @@ class ConsoleWidget(QWidget):
         return super().keyPressEvent(a0)
 
     def closeEvent(self, a0: QCloseEvent) -> None:
-        try:    
+        try:
             self.tn.close()
         except Exception:
             pass
