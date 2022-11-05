@@ -430,5 +430,6 @@ class ConsoleWidget(QWidget):
                     self.num_for_escape_seq = None
                     self.flag_for_escape_seq = False
             if self.track_cursor:
-                self.mainWidget.setTextCursor(self.mainWidget.Cursor)
+                bars = self.mainWidget.verticalScrollBar()
+                bars.setValue(bars.maximum())
         pass
