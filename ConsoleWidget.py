@@ -1,5 +1,5 @@
 from LibraryImport import *
-
+from TerminalWidget import Terminal
 
 class ConsoleWidget(QWidget):
     updateTime = pyqtSignal(float)
@@ -178,7 +178,7 @@ class ConsoleWidget(QWidget):
         if not self.Connected:
             self.Layout = QVBoxLayout()
             self.mainLayout.addLayout(self.Layout)
-            self.mainWidget = self.TextEdit()
+            self.mainWidget = Terminal()
             self.mainWidget.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             self.mainWidget.setReadOnly(True)
             self.Colors = QPalette()
@@ -349,86 +349,87 @@ class ConsoleWidget(QWidget):
             if re.search('rom.*>', string) != None or re.search("load.*>", string) or re.search("swit.*:", string):
                 print("Found one")
                 self.BreakToRommon()
-        for char in string:
+        self.mainWidget.AddTextToBuffer(string)
+        # for char in string:
             # /r-to the beginning of the line
             # /n-to the bottom
             # string = string.replace('\n\r', '\n', 1)
             # string = string.replace('\r\r', '', 1)
             # string = string.replace('\r\n', '\n', 1)
-            if char == '\x1b':
-                self.flag_for_escape_seq = True
-                self.num_for_escape_seq = 0
-            elif not self.flag_for_escape_seq:
-                if char == '\x08':
-                    self.mainWidget.Cursor.movePosition(
-                        QTextCursor.MoveOperation.Left, QTextCursor.MoveMode.MoveAnchor)
-                    char = ''
-                elif char == '\x07':
-                    char = ''
-                elif char == '\r':
-                    self.mainWidget.Cursor.movePosition(
-                        QTextCursor.MoveOperation.StartOfLine, QTextCursor.MoveMode.MoveAnchor)
-                elif char == '\n':
-                    self.mainWidget.Cursor.movePosition(
-                        QTextCursor.MoveOperation.EndOfLine, QTextCursor.MoveMode.MoveAnchor)
-                    self.mainWidget.Cursor.insertText(char)
-                else:
-                    self.mainWidget.Cursor.deleteChar()
-                    self.mainWidget.Cursor.insertText(char)
-            else:
-                if char.isnumeric():
-                    self.num_for_escape_seq = self.num_for_escape_seq * \
-                        10 + int(char)
-                elif char == 'D':
-                    self.mainWidget.Cursor.movePosition(
-                        QTextCursor.MoveOperation.Left, QTextCursor.MoveMode.MoveAnchor, max(self.num_for_escape_seq, 1))
-                    self.num_for_escape_seq = None
-                    self.flag_for_escape_seq = False
-                elif char == 'K':
-                    if self.num_for_escape_seq == 0:
-                        self.mainWidget.Cursor.movePosition(
-                            QTextCursor.MoveOperation.EndOfLine, QTextCursor.MoveMode.KeepAnchor)
-                    elif self.num_for_escape_seq == 1:
-                        self.mainWidget.Cursor.movePosition(
-                            QTextCursor.MoveOperation.StartOfLine, QTextCursor.MoveMode.KeepAnchor)
-                    elif self.num_for_escape_seq == 2:
-                        self.mainWidget.Cursor.movePosition(
-                            QTextCursor.MoveOperation.StartOfLine, QTextCursor.MoveMode.MoveAnchor)
-                        self.mainWidget.Cursor.movePosition(
-                            QTextCursor.MoveOperation.EndOfLine, QTextCursor.MoveMode.KeepAnchor)
-                    self.mainWidget.Cursor.removeSelectedText()
-                    self.flag_for_escape_seq = False
-                    self.num_for_escape_seq = None
-                elif char == 'C':
-                    self.mainWidget.Cursor.movePosition(
-                        QTextCursor.MoveOperation.Right, QTextCursor.MoveMode.MoveAnchor, max(self.num_for_escape_seq, 1))
-                    self.num_for_escape_seq = None
-                    self.flag_for_escape_seq = False
-                elif char == ';':
-                    self.num_for_escape_seq = 0
-                    self.flag_for_escape_seq = True
-                    pass
-                elif char == "H":
-                    self.num_for_escape_seq = max(1, self.num_for_escape_seq)
-                    self.mainWidget.Cursor.movePosition(
-                        QTextCursor.MoveOperation.StartOfLine, QTextCursor.MoveMode.MoveAnchor)
-                    self.mainWidget.Cursor.movePosition(
-                        QTextCursor.MoveOperation.Right, QTextCursor.MoveMode.MoveAnchor, self.num_for_escape_seq - 1)
-                    self.num_for_escape_seq = None
-                    self.flag_for_escape_seq = False
-                    pass
-                elif char == 'J':
-                    if self.num_for_escape_seq == 0:
-                        self.mainWidget.Cursor.movePosition(
-                            self.mainWidget.Cursor.MoveOperation["End"], self.mainWidget.Cursor.MoveMode['KeepAnchor'])
-                    self.mainWidget.Cursor.removeSelectedText()
-                    self.num_for_escape_seq = None
-                    self.flag_for_escape_seq = False
-                elif char == "[":
-                    pass
-                else:
-                    self.num_for_escape_seq = None
-                    self.flag_for_escape_seq = False
-            if self.track_cursor:
-                self.mainWidget.setTextCursor(self.mainWidget.Cursor)
+            # if char == '\x1b':
+            #     self.flag_for_escape_seq = True
+            #     self.num_for_escape_seq = 0
+            # elif not self.flag_for_escape_seq:
+            #     if char == '\x08':
+            #         self.mainWidget.Cursor.movePosition(
+            #             QTextCursor.MoveOperation.Left, QTextCursor.MoveMode.MoveAnchor)
+            #         char = ''
+            #     elif char == '\x07':
+            #         char = ''
+            #     elif char == '\r':
+            #         self.mainWidget.Cursor.movePosition(
+            #             QTextCursor.MoveOperation.StartOfLine, QTextCursor.MoveMode.MoveAnchor)
+            #     elif char == '\n':
+            #         self.mainWidget.Cursor.movePosition(
+            #             QTextCursor.MoveOperation.EndOfLine, QTextCursor.MoveMode.MoveAnchor)
+            #         self.mainWidget.Cursor.insertText(char)
+            #     else:
+            #         self.mainWidget.Cursor.deleteChar()
+            #         self.mainWidget.Cursor.insertText(char)
+            # else:
+            #     if char.isnumeric():
+            #         self.num_for_escape_seq = self.num_for_escape_seq * \
+            #             10 + int(char)
+            #     elif char == 'D':
+            #         self.mainWidget.Cursor.movePosition(
+            #             QTextCursor.MoveOperation.Left, QTextCursor.MoveMode.MoveAnchor, max(self.num_for_escape_seq, 1))
+            #         self.num_for_escape_seq = None
+            #         self.flag_for_escape_seq = False
+            #     elif char == 'K':
+            #         if self.num_for_escape_seq == 0:
+            #             self.mainWidget.Cursor.movePosition(
+            #                 QTextCursor.MoveOperation.EndOfLine, QTextCursor.MoveMode.KeepAnchor)
+            #         elif self.num_for_escape_seq == 1:
+            #             self.mainWidget.Cursor.movePosition(
+            #                 QTextCursor.MoveOperation.StartOfLine, QTextCursor.MoveMode.KeepAnchor)
+            #         elif self.num_for_escape_seq == 2:
+            #             self.mainWidget.Cursor.movePosition(
+            #                 QTextCursor.MoveOperation.StartOfLine, QTextCursor.MoveMode.MoveAnchor)
+            #             self.mainWidget.Cursor.movePosition(
+            #                 QTextCursor.MoveOperation.EndOfLine, QTextCursor.MoveMode.KeepAnchor)
+            #         self.mainWidget.Cursor.removeSelectedText()
+            #         self.flag_for_escape_seq = False
+            #         self.num_for_escape_seq = None
+            #     elif char == 'C':
+            #         self.mainWidget.Cursor.movePosition(
+            #             QTextCursor.MoveOperation.Right, QTextCursor.MoveMode.MoveAnchor, max(self.num_for_escape_seq, 1))
+            #         self.num_for_escape_seq = None
+            #         self.flag_for_escape_seq = False
+            #     elif char == ';':
+            #         self.num_for_escape_seq = 0
+            #         self.flag_for_escape_seq = True
+            #         pass
+            #     elif char == "H":
+            #         self.num_for_escape_seq = max(1, self.num_for_escape_seq)
+            #         self.mainWidget.Cursor.movePosition(
+            #             QTextCursor.MoveOperation.StartOfLine, QTextCursor.MoveMode.MoveAnchor)
+            #         self.mainWidget.Cursor.movePosition(
+            #             QTextCursor.MoveOperation.Right, QTextCursor.MoveMode.MoveAnchor, self.num_for_escape_seq - 1)
+            #         self.num_for_escape_seq = None
+            #         self.flag_for_escape_seq = False
+            #         pass
+            #     elif char == 'J':
+            #         if self.num_for_escape_seq == 0:
+            #             self.mainWidget.Cursor.movePosition(
+            #                 self.mainWidget.Cursor.MoveOperation["End"], self.mainWidget.Cursor.MoveMode['KeepAnchor'])
+            #         self.mainWidget.Cursor.removeSelectedText()
+            #         self.num_for_escape_seq = None
+            #         self.flag_for_escape_seq = False
+            #     elif char == "[":
+            #         pass
+            #     else:
+            #         self.num_for_escape_seq = None
+            #         self.flag_for_escape_seq = False
+        if self.track_cursor:
+            self.mainWidget.setTextCursor(self.mainWidget.Cursor)
         pass
