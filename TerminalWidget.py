@@ -19,12 +19,36 @@ class Terminal(QTextEdit):
         self.setTextCursor(self.Cursor)
         self.CursorColor = QColorConstants.White
         self.buffer = list()
-        self.UI_Update = QTimer()
         self.state = self.NORMAL
         self.MoveMode = QTextCursor.MoveMode
         self.MoveOp = QTextCursor.MoveOperation
         self.params = []
         self.TemporaryStorage = 0
+        self._c0Handlers = {
+            BELL: self.MakeSound,
+            BACKSPACE: self.MoveCarriageToTheLeft,
+            CARRIAGE_RETURN: self.MoveCarriageToTheStartOfTheLine,
+            ESC: self.ChangeStateToEscSeq,
+            '\r': self.MoveCarriageToTheStartOfTheLine,
+            '\n': self.MoveCarriageToTheNewLine
+        }
+
+        self._FeHandlers = {
+            '[': self.ChangeStateToCSI
+        }
+
+        self._CsiHandlers = {
+            'C': self.MoveCarriageToTheRight,
+            'D': self.MoveCarriageToTheLeft,
+            'E': self.MoveCarriageToTheNewLine,
+            'F': self.MoveCarriageToPreviousLine,
+            'H': self.MoveCursorToColumn,
+            'J': self.EraseInDisplay,
+            'K': self.EraseInLine,
+        }
+        self.UI_Update = QTimer()
+        self.UI_Update.timeout.connect(self.UpdateUI)
+        self.UI_Update.start()
 
     def paintEvent(self, a0: QPaintEvent) -> None:
         p = QPainter(self.viewport())
@@ -82,7 +106,7 @@ class Terminal(QTextEdit):
     def MoveCarriageToTheNewLine(self):
         self.Cursor.movePosition(
             self.MoveOp.EndOfLine, self.MoveMode.MoveAnchor)
-        self.Cursor.insertBlock('\n')
+        self.Cursor.insertText('\n')
 
     # Moves Cursor Based on column number
     def MoveCursorToColumn(self):
@@ -154,29 +178,6 @@ class Terminal(QTextEdit):
         self.params = []
         self.TemporaryStorage = 0
 
-    _c0Handlers = {
-        BELL: MakeSound,
-        BACKSPACE: MoveCarriageToTheLeft,
-        CARRIAGE_RETURN: MoveCarriageToTheStartOfTheLine,
-        ESC: ChangeStateToEscSeq,
-        '\r': MoveCarriageToTheStartOfTheLine,
-        '\n': MoveCarriageToTheNewLine
-    }
-
-    _FeHandlers = {
-        '[': ChangeStateToCSI
-    }
-
-    _CsiHandlers = {
-        'C': MoveCarriageToTheRight,
-        'D': MoveCarriageToTheLeft,
-        'E': MoveCarriageToTheNewLine,
-        'F': MoveCarriageToPreviousLine,
-        'H': MoveCursorToColumn,
-        'J': EraseInDisplay,
-        'K': EraseInLine,
-    }
-
     def UpdateUI(self):
         while self.buffer.__len__() != 0:
             char = self.buffer.pop(0)
@@ -216,7 +217,8 @@ class Terminal(QTextEdit):
                 if char in self._CsiHandlers:
                     self._CsiHandlers[char]()
                 else:
-                    self.resetParser()                
+                    self.resetParser() 
+                self.verticalScrollBar().setValue(self.verticalScrollBar().maximum())               
 
     def closeEvent(self, a0: QCloseEvent) -> None:
         self.UI_Update.stop()
