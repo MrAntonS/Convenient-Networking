@@ -430,6 +430,4 @@ class ConsoleWidget(QWidget):
             #     else:
             #         self.num_for_escape_seq = None
             #         self.flag_for_escape_seq = False
-        if self.track_cursor:
-            self.mainWidget.setTextCursor(self.mainWidget.Cursor)
         pass

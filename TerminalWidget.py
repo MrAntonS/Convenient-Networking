@@ -57,6 +57,11 @@ class Terminal(QTextEdit):
                    self.CursorColor)
         return super().paintEvent(a0)
 
+    # Method to update cursor if UI is not updated (example: cursor moves to the left)
+    def CursorUpdateEvent(self):
+        self.Cursor.insertText('@')
+        self.Cursor.deletePreviousChar()
+
     # Stores buffer until next UI update cycle
     def AddTextToBuffer(self, buffer):
         logging.debug(f'AddTextToBuffer method has been called')
@@ -105,7 +110,8 @@ class Terminal(QTextEdit):
 
     # Moves Cursor to the start of the line
     def MoveCarriageToTheStartOfTheLine(self):
-        logging.debug(f'MoveCarriageToTheStartOfTheLine method has been called')
+        logging.debug(
+            f'MoveCarriageToTheStartOfTheLine method has been called')
         self.Cursor.movePosition(
             self.MoveOp.StartOfLine, self.MoveMode.MoveAnchor)
 
@@ -158,6 +164,7 @@ class Terminal(QTextEdit):
         else:
             param = max(self.params[0], 1)
         self.params = []
+        logging.debug(f"Parameters: {param}")
         if param == 0:
             self.Cursor.movePosition(
                 self.MoveOp.EndOfLine, self.MoveMode.KeepAnchor)
@@ -186,7 +193,7 @@ class Terminal(QTextEdit):
     def ChangeStateToCSI(self):
         logging.debug(f'State has been changed to CSI')
         self.state = self.CSI
-    
+
     # Resets parser state to prevent any unusual behavior
     def resetParser(self):
         logging.debug(f'Parser has been resetted')
@@ -196,35 +203,45 @@ class Terminal(QTextEdit):
 
     def UpdateUI(self):
         while self.buffer.__len__() != 0:
+            VerticalBar = self.verticalScrollBar()
+            VerticalBar.setValue(VerticalBar.maximum())
+            self.CursorUpdateEvent()
             char = self.buffer.pop(0)
             assert isinstance(char, str), "Char is not a string"
 
             if char in self._c0Handlers.keys():
-                logging.debug(f'Character {char} has been identified as c0, calling a handler')
+                logging.debug(
+                    f'Character {char} has been identified as c0, calling a handler')
                 self._c0Handlers[char]()
                 continue
 
             if self.state is self.NORMAL:
-                logging.debug(f'Character {char} has been identified as normal, outputting')
+                logging.debug(
+                    f'Character {char} has been identified as normal, outputting')
+                self.Cursor.deleteChar()
                 self.Cursor.insertText(char)
 
             elif self.state is self.ESCAPE_SEQ:
-                logging.debug(f'Character {char} has been identified as Esc sequence, calling handler')
+                logging.debug(
+                    f'Character {char} has been identified as Esc sequence, calling handler')
                 try:
                     self._FeHandlers[char]()
                 except:
                     logging.debug(f'Sequence is unhandled')
 
             elif self.state is self.CSI:
-                logging.debug(f'State has been identified as CSI, calling handler')
+                logging.debug(
+                    f'State has been identified as CSI, calling handler')
                 paramChars = [chr(i) for i in range(0x30, 0x3F)] + [' ']
                 while char in paramChars:
                     if char.isnumeric():
-                        logging.debug(f'Character {char} has been identified as parameter, saving to param variable')
+                        logging.debug(
+                            f'Character {char} has been identified as parameter, saving to param variable')
                         self.TemporaryStorage *= 10
                         self.TemporaryStorage += int(char)
                     elif char == ';':
-                        logging.debug(f'Character {char} has been identified as end of parameter, saving to parameters list')
+                        logging.debug(
+                            f'Character {char} has been identified as end of parameter, saving to parameters list')
                         self.params.append(self.TemporaryStorage)
                         self.TemporaryStorage = 0
 
@@ -232,7 +249,8 @@ class Terminal(QTextEdit):
                         logging.debug(f'Taking next character')
                         char = self.buffer.pop(0)
                     else:
-                        logging.debug(f'No more characters in the buffer but CSI Did not end, waiting for next buffer chunk')
+                        logging.debug(
+                            f'No more characters in the buffer but CSI Did not end, waiting for next buffer chunk')
                         return
                 else:
                     logging.debug(f'Saving params for future use')
@@ -240,9 +258,10 @@ class Terminal(QTextEdit):
                     self.TemporaryStorage = 0
 
                 if char in self._CsiHandlers:
-                    logging.debug(f'Character {char} has been identified as CSI command, calling handler')
+                    logging.debug(
+                        f'Character {char} has been identified as CSI command, calling handler')
                     self._CsiHandlers[char]()
-                self.resetParser()               
+                self.resetParser()
 
     def closeEvent(self, a0: QCloseEvent) -> None:
         self.UI_Update.stop()
