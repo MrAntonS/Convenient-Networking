@@ -8,6 +8,7 @@ import telnetlib
 import os
 import socket
 import re
+import logging
 
 
 class Telnet_(telnetlib.Telnet):
