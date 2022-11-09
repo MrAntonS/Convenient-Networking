@@ -350,6 +350,4 @@ class ConsoleWidget(QWidget):
                 print("Found one")
                 self.BreakToRommon()
         self.mainWidget.AddTextToBuffer(string)
-        if self.track_cursor:
-            self.mainWidget.setTextCursor(self.mainWidget.Cursor)
         pass
