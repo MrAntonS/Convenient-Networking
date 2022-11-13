@@ -1,5 +1,5 @@
 from LibraryImport import *
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 ESC = chr(0x1B)
 BELL = chr(0x07)
@@ -30,6 +30,7 @@ class Terminal(QTextEdit):
             BACKSPACE: self.MoveCarriageToTheLeft,
             CARRIAGE_RETURN: self.MoveCarriageToTheStartOfTheLine,
             ESC: self.ChangeStateToEscSeq,
+            '^': self.ChangeStateToEscSeq,
             '\r': self.MoveCarriageToTheStartOfTheLine,
             '\n': self.MoveCarriageToTheNewLine
         }
@@ -65,6 +66,8 @@ class Terminal(QTextEdit):
     # Stores buffer until next UI update cycle
     def AddTextToBuffer(self, buffer):
         logging.debug(f'AddTextToBuffer method has been called')
+        # with open('test.txt', 'a') as f:
+        #     f.write(buffer)
         try:
             self.buffer += list(buffer)
         except:
@@ -125,13 +128,16 @@ class Terminal(QTextEdit):
     # Moves Cursor Based on column number
     def MoveCursorToColumn(self):
         logging.debug(f'Move cursor to Column method has beed called')
+        
         if self.params == []:
             param1, param2 = 1, 1
         else:
-            param1, param2 = max(self.params[0], 1), max(self.param[1], 1)
+            param1, param2 = max(self.params[0], 1), max(self.params[1], 1)
         self.params = []
         self.Cursor.movePosition(
             self.MoveOp.StartOfLine, self.MoveMode.MoveAnchor)
+        self.Cursor.movePosition(self.MoveOp.Up, self.MoveMode.MoveAnchor, 80)
+        self.Cursor.movePosition(self.MoveOp.Down, self.MoveMode.MoveAnchor, param1)
         self.Cursor.movePosition(
             self.MoveOp.Right, self.MoveMode.MoveAnchor, param2)
 
@@ -202,6 +208,8 @@ class Terminal(QTextEdit):
         self.TemporaryStorage = 0
 
     def UpdateUI(self):
+        if self.buffer.__len__() != 0:
+            logging.info(f"Got a buffer: {repr(''.join(self.buffer))}")
         while self.buffer.__len__() != 0:
             VerticalBar = self.verticalScrollBar()
             VerticalBar.setValue(VerticalBar.maximum())
@@ -261,6 +269,8 @@ class Terminal(QTextEdit):
                     logging.debug(
                         f'Character {char} has been identified as CSI command, calling handler')
                     self._CsiHandlers[char]()
+                else:
+                    logging.info(f"{repr(char)} is not handeled")
                 self.resetParser()
 
     def closeEvent(self, a0: QCloseEvent) -> None:
