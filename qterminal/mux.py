@@ -11,6 +11,7 @@ class Multiplexer(object):
         self.stop_flag = False
 
         self.thread = threading.Thread(target=self.listen)
+        self.thread.daemon = True
         self.thread.start()
 
     def add_backend(self, backend):
@@ -26,8 +27,8 @@ class Multiplexer(object):
         if backend.id in self.backend_index:
             self.read_index.pop(self.backend_index.pop(backend.id).get_read_wait())
 
-        if len(self.backend_index) <= 0:
-            self.stop()
+        # if len(self.backend_index) <= 0:
+        #     self.stop()
 
     def stop(self):
         self.stop_flag = True
@@ -37,7 +38,7 @@ class Multiplexer(object):
             read_wait_list = [a.get_read_wait() for a in self.backend_index.values()]
             if read_wait_list:
                 try:
-                    read_ready_list, write_ready_list, error_ready_list = select.select(read_wait_list, [], [])
+                    read_ready_list, write_ready_list, error_ready_list = select.select(read_wait_list, [], [], 1)
                 except:
                     read_ready_list = []
 
