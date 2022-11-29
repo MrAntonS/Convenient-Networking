@@ -2,26 +2,12 @@ from LibraryImport import *
 from ConsoleWidget import ConsoleWidget
 from ConnectionWidget import Connection_Window
 from TemplateWidget import TemplateWidget
-A = 0
+from qterminal.mux import mux
 
-class MainWindow(QMainWindow):
+
+class ConnectionBar(QWidget):
     def __init__(self):
-        # Call the inherited classes __init__ method
-        super(MainWindow, self).__init__()
-        self.initUi()
-        self.socket = socket.socket()
-        self.socket.bind(("", 5100))
-        self.socket.setblocking(False)
-        self.socket.listen(1)
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.CheckForNewTabs)
-        self.timer.start()
-        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.installEventFilter(self)
-
-    def initUi(self):
-        self.cntWidget = QWidget()
-        self.VboxLayout = QVBoxLayout()
+        super(ConnectionBar, self).__init__()
         self.connectLayout = QHBoxLayout()
         self.connectIns = QHBoxLayout()
         self.hostlbl = QLabel()
@@ -36,6 +22,9 @@ class MainWindow(QMainWindow):
         self.host.setFixedWidth(200)
         self.host.setSizePolicy(QSizePolicy(
             QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed))
+        self.protocolComboBox = QComboBox()
+        self.protocolComboBox.addItem("Telnet")
+        self.protocolComboBox.addItem("SSH")
         self.connectbtn = QPushButton()
         self.connectbtn.setText("Connect")
         self.connectbtn.setFixedWidth(70)
@@ -47,6 +36,7 @@ class MainWindow(QMainWindow):
             QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed))
         self.TimerLabel = QLabel()
         self.TimerLabel.setText('No connection')
+        self.connectIns.addWidget(self.protocolComboBox)
         self.connectIns.addWidget(self.hostlbl)
         self.connectIns.addWidget(self.host)
         self.connectIns.addWidget(self.portlbl)
@@ -61,8 +51,34 @@ class MainWindow(QMainWindow):
         self.connectLayout.addWidget(self.TimerLabel)
         self.host.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
         self.port.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
+        self.protocolComboBox.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
         self.connectbtn.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
-        self.VboxLayout.addLayout(self.connectLayout)
+        self.setLayout(self.connectLayout)
+
+
+class MainWindow(QMainWindow):
+    AddTab = pyqtSignal(str)
+
+    def __init__(self):
+        # Call the inherited classes __init__ method
+        super(MainWindow, self).__init__()
+        self.initUi()
+        self.socket = socket.socket()
+        self.socket.bind(("127.0.0.1", 5100))
+        self.socket.listen(1)
+        self.socket.setblocking(True)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.installEventFilter(self)
+        self.TabThread = threading.Thread(target=self.CheckForNewTabs)
+        self.TabThread.daemon = True
+        self.AddTab.connect(self.AddNewTab)
+        self.TabThread.start()
+
+    def initUi(self):
+        self.cntWidget = QWidget()
+        self.VboxLayout = QVBoxLayout()
+        self.connectionBar = ConnectionBar()
+        self.VboxLayout.addWidget(self.connectionBar)
         self.setWindowTitle("ConvNet")
         self.setGeometry(1000, 300, 1000, 700)
         self.setCentralWidget(self.cntWidget)
@@ -78,8 +94,8 @@ class MainWindow(QMainWindow):
             "Stop scrolling to the bottom")
         self.openTemplate = self.menu.addAction("Open Template File")
         self.openTemplate.triggered.connect(self.ReadFile)
-        self.connectbtn.clicked.connect(self.AddNewTab)
-        self.stopScrollingBtn.triggered.connect(self.stopScrolling)
+        self.connectionBar.connectbtn.clicked.connect(self.AddNewTab)
+        # self.stopScrollingBtn.triggered.connect(self.stopScrolling)
         self.Colors = QPalette()
         self.setPalette(self.Colors)
         self.TabWidget.setPalette(self.Colors)
@@ -88,6 +104,11 @@ class MainWindow(QMainWindow):
         self.TabWidget.setTabsClosable(True)
         self.TabWidget.tabCloseRequested.connect(self.CloseTab)
         self.show()
+        # self.startTimer(100)
+
+    def timerEvent(self, a0: QTimerEvent) -> None:
+        # print(self.TabWidget.currentWidget())
+        return super().timerEvent(a0)
 
     def ReadFile(self):
         fname = QFileDialog.getOpenFileName(
@@ -101,7 +122,6 @@ class MainWindow(QMainWindow):
     def OpenVariableWidget(self, content):
         try:
             curHost = self.TabWidget.currentWidget().host
-            print(curHost)
             self.temp_widget = TemplateWidget(content, curHost)
             self.temp_widget.submit.clicked.connect(self.Done)
             self.temp_widget.show()
@@ -120,53 +140,48 @@ class MainWindow(QMainWindow):
         del self.temp_widget
         # print(repr(self.content))
         # print(self.content)
-        self.TabWidget.currentWidget().tn.write(bytes(self.content, 'ascii'))
+        consoleWid = self.TabWidget.currentWidget()
+        assert isinstance(consoleWid, ConsoleWidget)
+        consoleWid.write(self.content)
         pass
 
     def CloseTab(self, ind):
         self.TabWidget.widget(ind).close()
         self.TabWidget.removeTab(ind)
 
-    def stopScrolling(self):
-        for i in range(self.TabWidget.count()):
-            self.TabWidget.widget(
-                i).track_cursor = not self.TabWidget.widget(i).track_cursor
+    # def stopScrolling(self):
+    #     for i in range(self.TabWidget.count()):
+    #         self.TabWidget.widget(
+    #             i).track_cursor = not self.TabWidget.widget(i).track_cursor
 
     def checkForTabScrollBtn(self):
         for child in self.TabWidget.findChildren(QToolButton):
             child.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
     def CheckForNewTabs(self):
-        try:
-            c, addr = self.socket.accept()
-            x = c.recv(1024)
-            self.AddNewTab(x.decode('ascii'))
-        except BlockingIOError as e:
-            pass
+        while True:
+            try:
+                conn, addr = self.socket.accept()
+                output = conn.recv(1024)
+                if output == b'':
+                    continue
+                self.AddTab.emit(output.decode('ascii'))
+            except Exception as e:
+                pass
 
     def AddNewTab(self, host=None):
+
         if isinstance(host, bool):
-            if self.port.text() != '':
-                host = self.host.text() + ':' + self.port.text()
+            if self.connectionBar.port.text() != '':
+                host = self.connectionBar.host.text() + ':' + self.connectionBar.port.text()
             else:
-                host = self.host.text()
-        consoleWidget = ConsoleWidget(host)
-        consoleWidget.updateTime.connect(self.UpdateTimerLabel)
+                host = self.connectionBar.host.text()
+        consoleWidget = ConsoleWidget(self.connectionBar.protocolComboBox.currentText(), host)
         index = self.TabWidget.addTab(consoleWidget, str(host))
-        consoleWidget.track_cursor = self.TabWidget.currentWidget().track_cursor
         self.checkForTabScrollBtn()
 
-    def UpdateTimerLabel(self, timer):
-        if timer == 0:
-            self.TimerLabel.setText('No protection')
-        elif timer == -1 or timer == -2:
-            if self.TabWidget.count() == 1:
-                self.TimerLabel.setText("No connection")
-        else:
-            self.TimerLabel.setText(
-                f"Protection will be active for {timer} minutes")
-
     def closeEvent(self, a0: QCloseEvent) -> None:
+        mux.stop()
         while self.TabWidget.count() > 0:
             self.TabWidget.widget(0).close()
             self.TabWidget.removeTab(0)
@@ -179,15 +194,16 @@ if __name__ == '__main__':
         s = socket.socket()  # create a socket object
         host = '127.0.0.1'  # Host i.p
         port = 5100  # Reserve a port for my app
-        s.settimeout(1)
+        s.settimeout(0.1)
         s.connect((host, port))
         if len(args) > 1:
             x = ' '.join(args[1:])
             s.send(bytes(x, 'ascii'))
+            mux.stop()
         else:
-            raise BaseException
+            sys.exit(-1)
     except Exception as e:
-        print(e, "!!!")
+        s.close()
         app = QApplication(sys.argv)
         main = MainWindow()
         if len(args) > 1:

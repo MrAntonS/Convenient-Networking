@@ -9,6 +9,8 @@ import os
 import socket
 import re
 import logging
+import threading
+import select
 
 
 class Telnet_(telnetlib.Telnet):
