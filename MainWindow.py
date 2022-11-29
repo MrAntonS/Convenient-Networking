@@ -2,7 +2,7 @@ from LibraryImport import *
 from ConsoleWidget import ConsoleWidget
 from ConnectionWidget import Connection_Window
 from TemplateWidget import TemplateWidget
-
+A = 0
 
 class MainWindow(QMainWindow):
     def __init__(self):
