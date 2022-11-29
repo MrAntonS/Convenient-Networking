@@ -59,6 +59,7 @@ class TelnetBackend(BaseBackend):
         self.ssh_client = None
         self.channel = None
         self.isProtectionActive = False
+        self.justReconnected = False
         self.thread.start()
         pass
 
@@ -73,10 +74,7 @@ class TelnetBackend(BaseBackend):
             self.isProtectionActive = True
         except:
             print(self.connected)
-            if self.isProtectionActive:
-                self.reconnect()
-            else:
-                self.connected = False
+            self.connected = False
         return super().connect()
 
     def get_read_wait(self):
@@ -99,10 +97,15 @@ class TelnetBackend(BaseBackend):
         try:
             # for i in range(1024):
             output = self.tn.read_eager()
-            self.write_to_screen(output)
+            if not self.justReconnected:
+                self.write_to_screen(output)
+            else:
+                self.justReconnected = False
         except Exception as e:
             print(e)
             if self.isProtectionActive:
+                self.isProtectionActive = False
+                self.justReconnected = True
                 self.reconnect()
             else:
                 self.connected = False

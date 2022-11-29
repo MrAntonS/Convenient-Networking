@@ -51,6 +51,7 @@ class Terminal(QTextEdit):
         super(Terminal, self).__init__()
         print(host)
         self.__initUI(ComboBoxSelection, host, username, password)
+        self.lastTimeKeyWasPressed = time.perf_counter()
         self.PasteShortCut = QShortcut(QKeySequence('Ctrl+V'), self)
         self.CopyShortCut = QShortcut(QKeySequence('Ctrl+Shift+C'), self)
         self.CopyAndBreakShortCut = QShortcut(QKeySequence('Ctrl+C'), self)
@@ -85,7 +86,8 @@ class Terminal(QTextEdit):
         self.Cursor = self.textCursor()
         self._cursorX = 0
         self._cursorY = 0
-        self.lines = 48
+        self.lines = 1
+        self.protocol = 0
         self.columns = 100
         self.scrollingPage = False
         self.BreakFeatureTimer = QTimer()
@@ -101,22 +103,28 @@ class Terminal(QTextEdit):
         if len(host) == 2:
             if host[0] == "telnet":
                 self.backend = TelnetBackend(self.columns, self.lines, host[1])
+                self.protocol = 1
             elif host[0] == 'ssh':
                 self.backend = SSHBackend(
                     self.columns, self.lines, host[1], username, password)
+                self.protocol = 2
             else:
                 if ComboBoxSelection == 'Telnet':
                     self.backend = TelnetBackend(
                         self.columns, self.lines, host[1])
+                    self.protocol = 1
                 elif ComboBoxSelection == 'SSH':
                     self.backend = SSHBackend(
                         self.columns, self.lines, host[1], username, password)
+                    self.protocol = 2
         elif len(host) == 1:
             if ComboBoxSelection == 'Telnet':
                 self.backend = TelnetBackend(self.columns, self.lines, host[0])
+                self.protocol = 1
             elif ComboBoxSelection == 'SSH':
                 self.backend = SSHBackend(
                     self.columns, self.lines, host[0], username, password)
+                self.protocol = 2
 
         self.timerID = self.startTimer(1)
 
@@ -131,7 +139,7 @@ class Terminal(QTextEdit):
                 (x) * (int(self.height() // (self._charHeight - 2))))
         except Exception as e:
             pass
-    
+
     def Copy(self):
         data = QMimeData()
         data.setText(self.textCursor().selection().toPlainText())
@@ -227,6 +235,7 @@ class Terminal(QTextEdit):
         return super().paintEvent(a0)
 
     def keyPressEvent(self, e: QKeyEvent) -> None:
+        self.lastTimeKeyWasPressed = time.perf_counter()
         if e.key() in keymap.keys():
             self.backend.write(keymap[e.key()])
         else:
@@ -235,7 +244,6 @@ class Terminal(QTextEdit):
 
     def timerEvent(self, e: QTimerEvent) -> None:
         if not self.backend.connected:
-            print('Emmited')
             self.killTimer(self.timerID)
             self.ConnectionSignal.emit()
             return
@@ -243,14 +251,6 @@ class Terminal(QTextEdit):
             return super().timerEvent(e)
         if self.scrollingPage:
             return super().timerEvent(e)
-        # try:
-        #     if self.LineSize() != (self.columns, self.lines):
-        #         print('eee')
-        #         self.backend.resize(
-        #             80, int(self.height() // self._charHeight))
-        #         self.columns, self.lines = self.LineSize()
-        # except:
-        #     pass
         if len(self.backend.screen.dirty) == 0 and self._cursorX == self.backend.cursor().x and self._cursorY == self.backend.cursor().y:
             return super().timerEvent(e)
         tmp = len(self.backend.screen.history.top) + \
@@ -259,11 +259,11 @@ class Terminal(QTextEdit):
             self.scroll.setMaximum(tmp if tmp > 0 else 0)
             self.isProgramMovingScroll = True
             self.scroll.setValue(self.scroll.maximum())
+        self.backend.isChanging = True
         self.WriteToUI()
+        self.backend.isChanging = False
         self._cursorX = self.backend.cursor().x
         self._cursorY = self.backend.cursor().y
-        # self.verticalScrollBar().setValue(round((self.backend.screen.cursor.y / 48) * self.verticalScrollBar().maximum()))
-        # f = QFontMetrics(self.Font)
         return super().timerEvent(e)
 
     def WriteToUI(self):
@@ -271,13 +271,13 @@ class Terminal(QTextEdit):
             Cursor = self.textCursor()
             charFormat = QTextCharFormat()
             charFormat.setFont(self.Font)
-            x = self.backend.screen.dirty.copy()
-            y = self.backend.screen.buffer.copy()
-            z = self.backend.screen.display.copy()
-            for i in x:
-                self.backend.screen.dirty.remove(i)
+            x = self.backend.screen.dirty
+            y = self.backend.screen.buffer
+            z = self.backend.screen.display
+            for i in self.backend.screen.dirty:
+                print(x)
                 line = y[i]
-                string = z[i]
+                string = z[i - 1]
                 if self.BreakFeatureTimer.isActive():
                     if re.search('rom.*>', string) != None or re.search("load.*>", string) or re.search("swit.*:", string):
                         self.SwitchBreakFeature()
@@ -288,7 +288,6 @@ class Terminal(QTextEdit):
                     Cursor.MoveOperation.Down, Cursor.MoveMode.MoveAnchor, i)
                 Cursor.movePosition(
                     Cursor.MoveOperation.EndOfLine, Cursor.MoveMode.KeepAnchor)
-                # Cursor.removeSelectedText()
                 same_text = ''
                 for j in y[i]:
                     char = line[j]
@@ -316,15 +315,16 @@ class Terminal(QTextEdit):
                 Cursor.insertText(' ' * (85 - len(y[i])))
             self.Cursor.movePosition(
                 self.Cursor.MoveOperation.Start, self.Cursor.MoveMode.MoveAnchor)
+            self.backend.screen.dirty.clear()
             self.updateCursor()
             self.Cursor.movePosition(self.Cursor.MoveOperation.Down,
                                      self.Cursor.MoveMode.MoveAnchor, self.backend.screen.cursor.y)
             self.Cursor.movePosition(self.Cursor.MoveOperation.Right,
                                      self.Cursor.MoveMode.MoveAnchor, self.backend.screen.cursor.x)
+            print(self.backend.screen.cursor.y, self.backend.screen.cursor.x)
         except Exception as e:
+            print(e)
             pass
-
-        # self.Cursor.insertText('\n'.join(self.backend.screen.display))
 
     def wheelEvent(self, e: QWheelEvent) -> None:
         y = e.angleDelta().y()
@@ -347,30 +347,22 @@ class QTerminal(QWidget):
     def __init__(self, ComboBoxSelection, host, username=None, password=None):
         super(QTerminal, self).__init__()
         self.resize(800, 600)
-
         self.layout = QHBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
-
         self.term = Terminal(ComboBoxSelection, host, username, password)
         self.term.ConnectionSignal.connect(self.__initFailedUI)
         self.term.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-
         self.scroll_bar = QScrollBar(Qt.Orientation.Vertical, self.term)
         self.scroll_bar.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.reconnectBtn = QPushButton()
         self.reconnectBtn.setText("Reconnect")
         self.reconnectBtn.clicked.connect(self.reconnect)
         self.reconnectBtn.setFixedSize(100, 40)
-        # self.term.hide()
-        # self.scroll_bar.hide()
         self.reconnectBtn.hide()
         self.layout.addWidget(self.term)
         self.layout.addWidget(self.scroll_bar)
         self.layout.addWidget(self.reconnectBtn)
-        # self.term.hide()
-        # self.scroll_bar.hide()
-
         self.term.set_scroll(self.scroll_bar)
 
     def reconnect(self):
