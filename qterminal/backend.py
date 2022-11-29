@@ -1,5 +1,4 @@
 from qterminal.mux import mux
-import chardet
 from qterminal.screen import QTerminalScreen
 from qterminal.stream import QTerminalStream
 import paramiko
