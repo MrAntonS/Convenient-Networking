@@ -2,7 +2,6 @@ Plan.txt
 /TelNet
 /output
 /__pycache__
-/img
 API_CONST.py
 /Templates/*
 !/Templates/Templates.txt
@@ -12,3 +11,5 @@ MegaPutty.zip
 /venv
 Enhanced-putty-terminal.minder
 qterminal/widget.py
+/__pycache__
+/qterminal/__pycache__
