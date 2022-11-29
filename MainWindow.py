@@ -66,6 +66,7 @@ class MainWindow(QMainWindow):
         self.socket = socket.socket()
         self.socket.bind(("127.0.0.1", 5100))
         self.socket.listen(1)
+        self.ProtectionTimer = 600
         self.socket.setblocking(True)
         self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.installEventFilter(self)
@@ -104,10 +105,30 @@ class MainWindow(QMainWindow):
         self.TabWidget.setTabsClosable(True)
         self.TabWidget.tabCloseRequested.connect(self.CloseTab)
         self.show()
-        # self.startTimer(100)
+        self.startTimer(100)
 
     def timerEvent(self, a0: QTimerEvent) -> None:
-        # print(self.TabWidget.currentWidget())
+        currWidget = self.TabWidget.currentWidget()
+        if currWidget != None:
+            assert isinstance(currWidget, ConsoleWidget)
+            if not currWidget.mainWidget.term.backend.connected:
+                self.connectionBar.TimerLabel.setText("No Connection")
+            else:
+                if currWidget.mainWidget.term.protocol == 2:
+                    self.connectionBar.TimerLabel.setText(
+                        "Protection not needed")
+                    return
+                lastTimePressed = currWidget.mainWidget.term.lastTimeKeyWasPressed
+                if self.ProtectionTimer - (time.perf_counter() - lastTimePressed) < 0:
+                    if currWidget.mainWidget.term.backend.isProtectionActive:
+                        currWidget.mainWidget.term.backend.isProtectionActive = False
+                    self.connectionBar.TimerLabel.setText("No protection")
+                else:
+                    if not currWidget.mainWidget.term.backend.isProtectionActive:
+                        currWidget.mainWidget.term.backend.isProtectionActive = True
+                    self.connectionBar.TimerLabel.setText(
+                        f"Protection will be active for {round((self.ProtectionTimer - (time.perf_counter() - lastTimePressed)) / 60, 1)}")
+
         return super().timerEvent(a0)
 
     def ReadFile(self):
@@ -176,7 +197,8 @@ class MainWindow(QMainWindow):
                 host = self.connectionBar.host.text() + ':' + self.connectionBar.port.text()
             else:
                 host = self.connectionBar.host.text()
-        consoleWidget = ConsoleWidget(self.connectionBar.protocolComboBox.currentText(), host)
+        consoleWidget = ConsoleWidget(
+            self.connectionBar.protocolComboBox.currentText(), host)
         index = self.TabWidget.addTab(consoleWidget, str(host))
         self.checkForTabScrollBtn()
 
