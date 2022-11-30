@@ -101,7 +101,8 @@ class MainWindow(QMainWindow):
         self.setPalette(self.Colors)
         self.TabWidget.setPalette(self.Colors)
         self.TabWidget.setTabsClosable(True)
-        self.setWindowIcon(QIcon(f"{sys.path[-1]}/img/convNet.ico"))
+        self.PATH = sys.path[-1]
+        self.setWindowIcon(QIcon(f"{self.PATH}/img/convNet.ico"))
         self.TabWidget.tabCloseRequested.connect(self.CloseTab)
         self.show()
         self.startTimer(100)
