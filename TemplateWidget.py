@@ -31,7 +31,6 @@ class TemplateWidget(QWidget):
             # print(i1, 'i1 after')
             if i1 in self.vars.keys():
                 continue
-            # checking
             layout = QHBoxLayout()
             layout.addSpacerItem(QSpacerItem(40, 0))
             label = QLabel(text=i1 + ":")
