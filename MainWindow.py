@@ -2,7 +2,7 @@ from LibraryImport import *
 from ConsoleWidget import ConsoleWidget
 from ConnectionWidget import Connection_Window
 from TemplateWidget import TemplateWidget
-from qterminal.mux import mux
+# from qterminal.mux import mux
 
 
 class ConnectionBar(QWidget):
@@ -107,29 +107,29 @@ class MainWindow(QMainWindow):
         self.show()
         self.startTimer(100)
 
-    def timerEvent(self, a0: QTimerEvent) -> None:
-        currWidget = self.TabWidget.currentWidget()
-        if currWidget != None:
-            assert isinstance(currWidget, ConsoleWidget)
-            if not currWidget.mainWidget.term.backend.connected:
-                self.connectionBar.TimerLabel.setText("No Connection")
-            else:
-                if currWidget.mainWidget.term.protocol == 2:
-                    self.connectionBar.TimerLabel.setText(
-                        "Protection not needed")
-                    return
-                lastTimePressed = currWidget.mainWidget.term.lastTimeKeyWasPressed
-                if self.ProtectionTimer - (time.perf_counter() - lastTimePressed) < 0:
-                    if currWidget.mainWidget.term.backend.isProtectionActive:
-                        currWidget.mainWidget.term.backend.isProtectionActive = False
-                    self.connectionBar.TimerLabel.setText("No protection")
-                else:
-                    if not currWidget.mainWidget.term.backend.isProtectionActive:
-                        currWidget.mainWidget.term.backend.isProtectionActive = True
-                    self.connectionBar.TimerLabel.setText(
-                        f"Protection will be active for {round((self.ProtectionTimer - (time.perf_counter() - lastTimePressed)) / 60, 1)}")
+    # def timerEvent(self, a0: QTimerEvent) -> None:
+    #     currWidget = self.TabWidget.currentWidget()
+    #     if currWidget != None:
+    #         assert isinstance(currWidget, ConsoleWidget)
+    #         if not currWidget.mainWidget.term.backend.connected:
+    #             self.connectionBar.TimerLabel.setText("No Connection")
+    #         else:
+    #             if currWidget.mainWidget.term.protocol == 2:
+    #                 self.connectionBar.TimerLabel.setText(
+    #                     "Protection not needed")
+    #                 return
+    #             lastTimePressed = currWidget.mainWidget.term.lastTimeKeyWasPressed
+    #             if self.ProtectionTimer - (time.perf_counter() - lastTimePressed) < 0:
+    #                 if currWidget.mainWidget.term.backend.isProtectionActive:
+    #                     currWidget.mainWidget.term.backend.isProtectionActive = False
+    #                 self.connectionBar.TimerLabel.setText("No protection")
+    #             else:
+    #                 if not currWidget.mainWidget.term.backend.isProtectionActive:
+    #                     currWidget.mainWidget.term.backend.isProtectionActive = True
+    #                 self.connectionBar.TimerLabel.setText(
+    #                     f"Protection will be active for {round((self.ProtectionTimer - (time.perf_counter() - lastTimePressed)) / 60, 1)}")
 
-        return super().timerEvent(a0)
+    #     return super().timerEvent(a0)
 
     def ReadFile(self):
         fname = QFileDialog.getOpenFileName(

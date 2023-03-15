@@ -1,5 +1,5 @@
 from LibraryImport import *
-from TerminalWidget import QTerminal
+# from TerminalWidget import QTerminal
 
 class ConsoleWidget(QWidget):
     def __init__(self, ComboBoxSelection, host, username=None, password=None):
@@ -12,7 +12,7 @@ class ConsoleWidget(QWidget):
     def initUI(self, ComboBoxSeleciton, host, usr, psw):
         self.Layout = QVBoxLayout()
         self.mainLayout.addLayout(self.Layout)
-        self.mainWidget = QTerminal(ComboBoxSeleciton, host, usr, psw)
+        self.mainWidget = Terminal('fish', [])
         # self.mainWidget.term.CheckCharSize()
         self.Colors = QPalette()
         self.Layout.setContentsMargins(4, 4, 4, 4)
