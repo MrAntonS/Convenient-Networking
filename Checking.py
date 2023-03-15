@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-#WHA
+#WHAt
 
 from PyQt5 import QtWidgets
 from QTermWidget import QTermWidget
