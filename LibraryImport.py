@@ -32,7 +32,7 @@ class Terminal(QTermWidget):
         super().__init__(0)
         self.finished.connect(self.close)
         self.setTerminalSizeHint(False)
-        self.setColorScheme("DarkPastels")
+        self.setColorScheme("Tango")
         self.setShellProgram(process)
         self.setArgs(args)
         self.startShellProgram()
