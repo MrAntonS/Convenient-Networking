@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 #WHAT
+
 from PyQt5 import QtWidgets
 from QTermWidget import QTermWidget
 
