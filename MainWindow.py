@@ -203,7 +203,6 @@ class MainWindow(QMainWindow):
         self.checkForTabScrollBtn()
 
     def closeEvent(self, a0: QCloseEvent) -> None:
-        mux.stop()
         while self.TabWidget.count() > 0:
             self.TabWidget.widget(0).close()
             self.TabWidget.removeTab(0)
@@ -221,7 +220,6 @@ if __name__ == '__main__':
         if len(args) > 1:
             x = ' '.join(args[1:])
             s.send(bytes(x, 'ascii'))
-            mux.stop()
         else:
             sys.exit(-1)
     except Exception as e:
