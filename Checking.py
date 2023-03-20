@@ -1,25 +1,11 @@
-#!/usr/bin/python3
-#Checking my email
+from tkinter import *
+import os
 
-from PyQt5 import QtWidgets
-from QTermWidget import QTermWidget
+root = Tk()
+termf = Frame(root, height=400, width=500)
 
+termf.pack(fill=BOTH, expand=YES)
+wid = termf.winfo_id()
+os.system(f'xterm -into %d -geometry {400}x{500} -sb &' % wid)
 
-class Terminal(QTermWidget):
-    def __init__(self, process: str, args: list):
-        super().__init__(0)
-        self.finished.connect(self.close)
-        self.setTerminalSizeHint(False)
-        self.setColorScheme("DarkPastels")
-        self.setShellProgram(process)
-        self.setArgs(args)
-        self.startShellProgram()
-        self.show()
-
-
-if __name__ == "__main__":
-    app = QtWidgets.QApplication([])
-    args = ["--clean", "--noplugin"]
-    term = Terminal("fish", [])
-    term.sendText("ls\n")
-    app.exec()
+root.mainloop()
