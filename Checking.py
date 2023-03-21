@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import QApplication, QWidget
-from PyQt5.QtGui import QWindow
+from PyQt5.QtGui import QWindow, QResizeEvent
 import sys
 from subprocess import Popen, PIPE, STDOUT
 import win32gui
@@ -10,16 +10,19 @@ class QEmbed(QWidget):
     def __init__(self):
         super(QEmbed, self).__init__()
         exePath = "putty google.com"
-        x = Popen(exePath)
+        self.x = Popen(exePath)
         sleep(3)
         hwnd = win32gui.FindWindow(None, "Putty")
-        print(hwnd, x.pid) 
+        print(hwnd, self.x.pid) 
         window = QWindow.fromWinId(hwnd)
         window.resize(6000, 5000)
-        x = self.createWindowContainer(window, self)
+        self.y = self.createWindowContainer(window, self)
         self.resize(1000, 600)
-        x.resize(self.size())
+        self.y.resize(self.size())
         self.show()
+    def resizeEvent(self, a0: QResizeEvent) -> None:
+        self.y.resize(a0.size())
+        return super().resizeEvent(a0)
 
 
 if __name__ == "__main__":
