@@ -11,11 +11,10 @@ class QEmbed(QWidget):
         super(QEmbed, self).__init__()
         exePath = "putty google.com"
         self.x = Popen(exePath)
-        sleep(3)
+        sleep(0.05)
         hwnd = win32gui.FindWindow(None, "Putty")
         print(hwnd, self.x.pid) 
         window = QWindow.fromWinId(hwnd)
-        window.resize(6000, 5000)
         self.y = self.createWindowContainer(window, self)
         self.resize(1000, 600)
         self.y.resize(self.size())
