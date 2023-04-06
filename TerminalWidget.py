@@ -49,7 +49,7 @@ class Terminal(QTextEdit):
 
     def __init__(self, ComboBoxSelection, host, username=None, password=None):
         super(Terminal, self).__init__()
-        print(host)
+        #print(host)
         self.__initUI(ComboBoxSelection, host, username, password)
         self.lastTimeKeyWasPressed = time.perf_counter()
         self.PasteShortCut = QShortcut(QKeySequence('Ctrl+V'), self)
@@ -267,6 +267,7 @@ class Terminal(QTextEdit):
         return super().timerEvent(e)
 
     def WriteToUI(self):
+        pass
         try:
             Cursor = self.textCursor()
             charFormat = QTextCharFormat()
@@ -274,8 +275,13 @@ class Terminal(QTextEdit):
             x = self.backend.screen.dirty
             y = self.backend.screen.buffer
             z = self.backend.screen.display
+            if self.backend.screen.dirty != []:
+                CurrentDirty = self.backend.screen.history.top
+                for i in CurrentDirty:
+                    for j in i:
+                        print(i[j].data, end='', flush=True)
             for i in self.backend.screen.dirty:
-                print(x)
+                #print(x)
                 line = y[i]
                 string = z[i - 1]
                 if self.BreakFeatureTimer.isActive():
@@ -323,7 +329,7 @@ class Terminal(QTextEdit):
                                      self.Cursor.MoveMode.MoveAnchor, self.backend.screen.cursor.x)
             print(self.backend.screen.cursor.y, self.backend.screen.cursor.x)
         except Exception as e:
-            print(e)
+            # print(e)
             pass
 
     def wheelEvent(self, e: QWheelEvent) -> None:
@@ -335,7 +341,7 @@ class Terminal(QTextEdit):
         return super().wheelEvent(e)
 
     def closeEvent(self, a0: QCloseEvent) -> None:
-        print('closed')
+        #print('closed')
         self.killTimer(self.timerID)
         self.backend.close()
         self.BreakFeatureTimer.stop()

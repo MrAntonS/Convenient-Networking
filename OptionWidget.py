@@ -5,7 +5,7 @@ class OptionWidget(QWidget):
     def __init__(self):
         super(OptionWidget, self).__init__()
     def checkIfOptionFileExists(self):
-        print(sys.path)
+        #print(sys.path)
         pass
 
 if __name__ == "__main__":
