@@ -81,25 +81,26 @@ class Terminal(QTextEdit):
             QPalette().ColorRole["Window"], QColorConstants.Black)
         self.setPalette(self.Colors)
         self.setFont(self.Font)
-        self.previousScrollValue = 0
-        self.isProgramMovingScroll = False
-        self.Cursor = self.textCursor()
-        self._cursorX = 0
-        self._cursorY = 0
-        self.lines = 1
+
+        #The Cursor that gets displayed
+        self.MainCursor = self.textCursor()
+        #The Cursor that stays above the terminal and write down history that comes in
+        self.HistoryCursor = self.textCursor()
+
+        #Character Formatting
+        self.charFormat = QTextCharFormat()
+        self.charFormat.setFont(self.Font)
+
+        self.lines = 24
         self.protocol = 0
         self.columns = 100
-        self.scrollingPage = False
         self.BreakFeatureTimer = QTimer()
         self.BreakFeatureTimer.setInterval(500)
         self.BreakFeatureTimer.timeout.connect(self.BreakIntoRommon)
-        self.scroll = None
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.show()
-        self.CheckCharSize()
-        self.Resize()
         host = host.strip(' /')
         host = host.split('://')
+        #To-Do rewrite this as a dictionary
         if len(host) == 2:
             if host[0] == "telnet":
                 self.backend = TelnetBackend(self.columns, self.lines, host[1])
@@ -125,20 +126,13 @@ class Terminal(QTextEdit):
                 self.backend = SSHBackend(
                     self.columns, self.lines, host[0], username, password)
                 self.protocol = 2
-
+        self.Clear_Last_24_lines()
+        self.HistoryCursor.movePosition(QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor)
         self.timerID = self.startTimer(1)
 
-    def Resize(self):
-        try:
-            # int(self.width() // self._charWidth)
-            self.backend.resize(
-                85, int(self.height() // (self._charHeight - 2)))
-            self.clear()
-            x = ' ' * (85) + '\n'
-            self.Cursor.insertText(
-                (x) * (int(self.height() // (self._charHeight - 2))))
-        except Exception as e:
-            pass
+    def Clear_Last_24_lines(self):
+        x = ' ' * (self.columns) + '\n'
+        self.MainCursor.insertText(x * self.lines)
 
     def Copy(self):
         data = QMimeData()
@@ -161,8 +155,11 @@ class Terminal(QTextEdit):
         self.updateCursor()
 
     def updateCursor(self):
-        self.Cursor.insertText('\n')
-        self.Cursor.deletePreviousChar()
+        self.Move_Cursor_to_desired_line(self.backend.screen.cursor.y)
+        self.MainCursor.movePosition(QTextCursor.MoveOperation.Right,
+                                     QTextCursor.MoveMode.MoveAnchor, self.backend.screen.cursor.x)
+        self.MainCursor.insertText('\n')
+        self.MainCursor.deletePreviousChar()
 
     def BreakIntoRommon(self):
         self.backend.write(b'\x03')
@@ -173,65 +170,13 @@ class Terminal(QTextEdit):
         self.backend.write(telnetlib.IAC)
         self.backend.write(telnetlib.BRK)
 
-    def CheckCharSize(self):
-        self.clear()
-        self.Cursor.insertText('aa')
-        while self.Cursor.columnNumber() > 1:
-            columnNum = self.Cursor.columnNumber()
-            self.Cursor.insertText('a')
-        self._charWidth = self.width() / columnNum
-        self.clear()
-        rowNum = 0
-        while self.verticalScrollBar().maximum() == 0:
-            self.Cursor.insertText('\n')
-            rowNum += 1
-        self._charHeight = self.height() / rowNum
-        self.clear()
-        x = ' ' * (columnNum) + '\n'
-        self.Cursor.insertText(x * rowNum)
-
     def Paste(self):
         self.backend.write(bytes(QApplication.clipboard().text(), 'utf-8'))
 
-    def LineSize(self):
-        return self.width() // self._charWidth, self.height() // self._charHeight
-
-    def set_scroll(self, scroll):
-        self.scroll = scroll
-        self.scroll.setMaximum(0)
-        tmp = len(self.backend.screen.history.top) + \
-            len(self.backend.screen.history.bottom) - 1
-        self.scroll.setMinimum(tmp if tmp > 0 else 0)
-        self.scroll.valueChanged.connect(self.ValueChanged)
-
-    def resizeEvent(self, a0: QResizeEvent) -> None:
-        try:
-            self.Resize()
-        except Exception as e:
-            pass
-
-        return super().resizeEvent(a0)
-
-    def ValueChanged(self, value):
-        if self.isProgramMovingScroll:
-            self.isProgramMovingScroll = False
-            self.previousScrollValue = value
-            return
-        self.scrollingPage = True
-        if self.previousScrollValue > value:
-            for i in range(abs(value - self.previousScrollValue)):
-                self.backend.screen.prev_page()
-        else:
-            for i in range(abs(value - self.previousScrollValue)):
-                self.backend.screen.next_page()
-        self.scrollingPage = False
-        self.previousScrollValue = value
-
     def paintEvent(self, a0: QPaintEvent) -> None:
-        if self.scroll.value() == self.scroll.maximum():
-            p = QPainter(self.viewport())
-            p.fillRect(self.cursorRect(self.Cursor),
-                       self.CursorColor)
+        p = QPainter(self.viewport())
+        p.fillRect(self.cursorRect(self.MainCursor),
+                    self.CursorColor)
         return super().paintEvent(a0)
 
     def keyPressEvent(self, e: QKeyEvent) -> None:
@@ -249,96 +194,105 @@ class Terminal(QTextEdit):
             return
         if not self.isVisible():
             return super().timerEvent(e)
-        if self.scrollingPage:
-            return super().timerEvent(e)
         if len(self.backend.screen.dirty) == 0 and self._cursorX == self.backend.cursor().x and self._cursorY == self.backend.cursor().y:
             return super().timerEvent(e)
-        tmp = len(self.backend.screen.history.top) + \
-            len(self.backend.screen.history.bottom)
-        if tmp != self.scroll.maximum():
-            self.scroll.setMaximum(tmp if tmp > 0 else 0)
-            self.isProgramMovingScroll = True
-            self.scroll.setValue(self.scroll.maximum())
-        self.backend.isChanging = True
         self.WriteToUI()
-        self.backend.isChanging = False
         self._cursorX = self.backend.cursor().x
         self._cursorY = self.backend.cursor().y
         return super().timerEvent(e)
 
+    def Push_History_to_the_bottom(self):
+        if not self.backend.screen.history.top:
+            return
+        while self.backend.screen.history.top:
+            #Top line
+            line = self.backend.screen.history.top.pop()
+            # string of characters that are using the same formatting
+            same_text = ""
+            for_debugging = ''
+            # saving previous character to compare coloring
+            pre_char = None
+            for j in line:
+                char = line[j]
+                for_debugging += char.data
+                if pre_char and char.bg == pre_char.bg and char.fg == pre_char.fg:
+                    same_text += char.data
+                    continue
+                else:
+                    if same_text != '':
+                        self.HistoryCursor.insertText(same_text, self.charFormat)
+                        same_text = ''
+                    same_text += char.data
+                    if char.fg == 'default': self.charFormat.setForeground(colors["green"])
+                    else: 
+                        self.charFormat.setForeground(
+                            colors[char.fg]) if char.fg != 'white' else self.charFormat.setForeground(colors['gray'])
+
+                    if char.bg == 'default': self.charFormat.setBackground(colors["black"])
+                    else:
+                        self.charFormat.setBackground(colors[char.bg])
+                    pre_char = char
+            if same_text != '':
+                        self.HistoryCursor.insertText(same_text, self.charFormat)
+            logging.info(f"Pushed a message {for_debugging}")
+            
+            for_debugging = ''
+            self.HistoryCursor.insertText('\n')
+        pass
+
+    def Move_Cursor_to_desired_line(self, line_num):
+        self.MainCursor.movePosition(QTextCursor.MoveOperation.End, QTextCursor.MoveMode.MoveAnchor)
+        self.MainCursor.movePosition(QTextCursor.MoveOperation.Up, QTextCursor.MoveMode.MoveAnchor, self.lines - line_num + 1)
+        self.MainCursor.movePosition(QTextCursor.MoveOperation.StartOfLine, QTextCursor.MoveMode.MoveAnchor)
+
     def WriteToUI(self):
         pass
-        try:
-            Cursor = self.textCursor()
-            charFormat = QTextCharFormat()
-            charFormat.setFont(self.Font)
-            x = self.backend.screen.dirty
-            y = self.backend.screen.buffer
-            z = self.backend.screen.display
-            if self.backend.screen.dirty != []:
-                CurrentDirty = self.backend.screen.history.top
-                for i in CurrentDirty:
-                    for j in i:
-                        print(i[j].data, end='', flush=True)
-            for i in self.backend.screen.dirty:
-                #print(x)
-                line = y[i]
-                string = z[i - 1]
-                if self.BreakFeatureTimer.isActive():
-                    if re.search('rom.*>', string) != None or re.search("load.*>", string) or re.search("swit.*:", string):
-                        self.SwitchBreakFeature()
-                pre_char = None
-                Cursor.movePosition(
-                    Cursor.MoveOperation.Start, Cursor.MoveMode.MoveAnchor)
-                Cursor.movePosition(
-                    Cursor.MoveOperation.Down, Cursor.MoveMode.MoveAnchor, i)
-                Cursor.movePosition(
-                    Cursor.MoveOperation.EndOfLine, Cursor.MoveMode.KeepAnchor)
-                same_text = ''
-                for j in y[i]:
-                    char = line[j]
-                    if pre_char and char.bg == pre_char.bg and char.fg == pre_char.fg:
-                        same_text += char.data
-                        continue
-                    else:
-                        if same_text != '':
-                            Cursor.insertText(same_text, charFormat)
-                            same_text = ''
-                        same_text += char.data
-                        if char.fg == 'default':
-                            pass
-                        else:
-                            charFormat.setForeground(
-                                colors[char.fg]) if char.fg != 'white' else charFormat.setForeground(colors['gray'])
-                        if char.bg == 'default':
-                            pass
-                        else:
-                            charFormat.setBackground(colors[char.bg])
-                        pre_char = char
-                if same_text != '':
-                    Cursor.insertText(same_text, charFormat)
-                    same_text = ''
-                Cursor.insertText(' ' * (85 - len(y[i])))
-            self.Cursor.movePosition(
-                self.Cursor.MoveOperation.Start, self.Cursor.MoveMode.MoveAnchor)
-            self.backend.screen.dirty.clear()
-            self.updateCursor()
-            self.Cursor.movePosition(self.Cursor.MoveOperation.Down,
-                                     self.Cursor.MoveMode.MoveAnchor, self.backend.screen.cursor.y)
-            self.Cursor.movePosition(self.Cursor.MoveOperation.Right,
-                                     self.Cursor.MoveMode.MoveAnchor, self.backend.screen.cursor.x)
-            print(self.backend.screen.cursor.y, self.backend.screen.cursor.x)
-        except Exception as e:
-            # print(e)
-            pass
+        # try:
+        # Needed for character formatting
+        self.MainCursor.deletePreviousChar()
+        self.Push_History_to_the_bottom()
+        buffer = self.backend.screen.buffer
+        # Needed for Break Function
+        screen = self.backend.screen.display
+        for i in self.backend.screen.dirty:
+            line = buffer[i]
+            string = screen[i - 1]
+            if self.BreakFeatureTimer.isActive():
+                if re.search('rom.*>', string) != None or re.search("load.*>", string) or re.search("swit.*:", string):
+                    self.SwitchBreakFeature()
+            pre_char = None
+            self.Move_Cursor_to_desired_line(line_num=i)
+            self.MainCursor.movePosition(QTextCursor.MoveOperation.EndOfLine, QTextCursor.MoveMode.KeepAnchor)
+            same_text = ''
+            for j in buffer[i]:
+                char = line[j]
+                if pre_char and char.bg == pre_char.bg and char.fg == pre_char.fg:
+                    same_text += char.data
+                    continue
+                else:
+                    if same_text != '':
+                        self.MainCursor.insertText(same_text, self.charFormat)
+                        same_text = ''
+                    same_text += char.data
+                    if char.fg == 'default': self.charFormat.setForeground(colors["green"])
+                    else: 
+                        self.charFormat.setForeground(
+                            colors[char.fg]) if char.fg != 'white' else self.charFormat.setForeground(colors['gray'])
 
-    def wheelEvent(self, e: QWheelEvent) -> None:
-        y = e.angleDelta().y()
-        if y < 0:
-            self.scroll.setValue(self.scroll.value() + 2)
-        else:
-            self.scroll.setValue(self.scroll.value() - 2)
-        return super().wheelEvent(e)
+                    if char.bg == 'default': self.charFormat.setBackground(colors["black"])
+                    else:
+                        self.charFormat.setBackground(colors[char.bg])
+
+                    pre_char = char
+            if same_text != '':
+                self.MainCursor.insertText(same_text, self.charFormat)
+            # self.MainCursor.insertText(' ' * (85 - len(buffer[i])))
+        self.backend.screen.dirty.clear()
+        self.updateCursor()
+        self.MainCursor.insertText("@")
+        # except Exception as e:
+        #     print(e)
+        #     pass
 
     def closeEvent(self, a0: QCloseEvent) -> None:
         #print('closed')
@@ -359,31 +313,25 @@ class QTerminal(QWidget):
         self.term.ConnectionSignal.connect(self.__initFailedUI)
         self.term.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.scroll_bar = QScrollBar(Qt.Orientation.Vertical, self.term)
-        self.scroll_bar.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.reconnectBtn = QPushButton()
         self.reconnectBtn.setText("Reconnect")
         self.reconnectBtn.clicked.connect(self.reconnect)
         self.reconnectBtn.setFixedSize(100, 40)
         self.reconnectBtn.hide()
         self.layout.addWidget(self.term)
-        self.layout.addWidget(self.scroll_bar)
         self.layout.addWidget(self.reconnectBtn)
-        self.term.set_scroll(self.scroll_bar)
 
     def reconnect(self):
         self.term.backend.reconnect()
         self.term.timerID = self.term.startTimer(1)
         self.reconnectBtn.hide()
         self.term.show()
-        self.scroll_bar.show()
 
     def __initFailedUI(self):
         if self.reconnectBtn.isVisible():
             return
         self.reconnectBtn.show()
         self.term.hide()
-        self.scroll_bar.hide()
 
     def CheckIfBackendIsStillConnected(self):
         return self.term.backend.connected
@@ -396,5 +344,4 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
     print('Debug Mode')
     term = QTerminal('ssh://10.122.187.40/')
-    term.term.CheckCharSize()
     sys.exit(app.exec())
