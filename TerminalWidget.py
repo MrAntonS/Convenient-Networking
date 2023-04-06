@@ -13,7 +13,7 @@ colors = {
     'yellow': QColor(0xff, 0xff, 0x44),
     'magenta': QColor(0xaa, 0x00, 0xaa),
     'white': QColor(0xff, 0xff, 0xff),
-    'gray': QColor(0xc0, 0xc0, 0xc0)
+    'gray': QColor(0xc0, 0xc0, 0xc0),
 }
 keymap = {
     Qt.Key.Key_Backspace: chr(127),
@@ -73,10 +73,12 @@ class Terminal(QTextEdit):
         self.Font.setPixelSize(15)
         self.Colors = QPalette()
         self.CursorColor = QColorConstants.White
+        self.textColors = QColorConstants.Green
+        self.textBackground = QColor(40, 40, 40)
         self.Colors.setColor(
-            QPalette().ColorRole["Text"], QColorConstants.Green)
+            QPalette().ColorRole["Text"], self.textColors)
         self.Colors.setColor(
-            QPalette().ColorRole["Base"], QColor(40, 40, 40))
+            QPalette().ColorRole["Base"], self.textBackground)
         self.Colors.setColor(
             QPalette().ColorRole["Window"], QColorConstants.Black)
         self.setPalette(self.Colors)
@@ -128,6 +130,7 @@ class Terminal(QTextEdit):
                 self.protocol = 2
         self.Clear_Last_24_lines()
         self.HistoryCursor.movePosition(QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor)
+        self.HistoryCursor.insertText("!!!!")
         self.timerID = self.startTimer(1)
 
     def Clear_Last_24_lines(self):
@@ -158,6 +161,7 @@ class Terminal(QTextEdit):
         self.Move_Cursor_to_desired_line(self.backend.screen.cursor.y)
         self.MainCursor.movePosition(QTextCursor.MoveOperation.Right,
                                      QTextCursor.MoveMode.MoveAnchor, self.backend.screen.cursor.x)
+        self.MainCursor.insertText("@")
         self.MainCursor.insertText('\n')
         self.MainCursor.deletePreviousChar()
 
@@ -203,53 +207,54 @@ class Terminal(QTextEdit):
 
     def Push_History_to_the_bottom(self):
         if not self.backend.screen.history.top:
+            print('No history')
             return
         while self.backend.screen.history.top:
             #Top line
             line = self.backend.screen.history.top.pop()
-            # string of characters that are using the same formatting
-            same_text = ""
-            for_debugging = ''
-            # saving previous character to compare coloring
-            pre_char = None
-            for j in line:
-                char = line[j]
-                for_debugging += char.data
-                if pre_char and char.bg == pre_char.bg and char.fg == pre_char.fg:
-                    same_text += char.data
-                    continue
-                else:
-                    if same_text != '':
-                        self.HistoryCursor.insertText(same_text, self.charFormat)
-                        same_text = ''
-                    same_text += char.data
-                    if char.fg == 'default': self.charFormat.setForeground(colors["green"])
-                    else: 
-                        self.charFormat.setForeground(
-                            colors[char.fg]) if char.fg != 'white' else self.charFormat.setForeground(colors['gray'])
+            # # string of characters that are using the same formatting
+            # same_text = ""
+            # for_debugging = ''
+            # # saving previous character to compare coloring
+            # pre_char = None
+            # for j in line:
+            #     char = line[j]
+            #     for_debugging += char.data
+            #     if pre_char and char.bg == pre_char.bg and char.fg == pre_char.fg:
+            #         same_text += char.data
+            #         continue
+            #     else:
+            #         if same_text != '':
+            #             # self.HistoryCursor.insertText(same_text, self.charFormat)
+            #             print("Pushed2", same_text)
+            #             same_text = ''
+            #         same_text += char.data
+            #         if char.fg == 'default': self.charFormat.setForeground(colors["green"])
+            #         else: 
+            #             self.charFormat.setForeground(
+            #                 colors[char.fg]) if char.fg != 'white' else self.charFormat.setForeground(colors['gray'])
 
-                    if char.bg == 'default': self.charFormat.setBackground(colors["black"])
-                    else:
-                        self.charFormat.setBackground(colors[char.bg])
-                    pre_char = char
-            if same_text != '':
-                        self.HistoryCursor.insertText(same_text, self.charFormat)
-            logging.info(f"Pushed a message {for_debugging}")
-            
-            for_debugging = ''
-            self.HistoryCursor.insertText('\n')
+            #         if char.bg == 'default': self.charFormat.setBackground(colors["black"])
+            #         else:
+            #             self.charFormat.setBackground(colors[char.bg])
+            #         pre_char = char
+            # if same_text != '':
+            #     same_text = ''
+            self.HistoryCursor.insertText("\n", self.charFormat)
+            self.HistoryCursor.movePosition(QTextCursor.MoveOperation.Down, QTextCursor.MoveMode.MoveAnchor)
+            # for_debugging = ''
         pass
 
     def Move_Cursor_to_desired_line(self, line_num):
         self.MainCursor.movePosition(QTextCursor.MoveOperation.End, QTextCursor.MoveMode.MoveAnchor)
-        self.MainCursor.movePosition(QTextCursor.MoveOperation.Up, QTextCursor.MoveMode.MoveAnchor, self.lines - line_num + 1)
+        self.MainCursor.movePosition(QTextCursor.MoveOperation.Up, QTextCursor.MoveMode.MoveAnchor, self.lines - line_num)
         self.MainCursor.movePosition(QTextCursor.MoveOperation.StartOfLine, QTextCursor.MoveMode.MoveAnchor)
 
     def WriteToUI(self):
         pass
         # try:
         # Needed for character formatting
-        self.MainCursor.deletePreviousChar()
+        # self.MainCursor.deletePreviousChar()
         self.Push_History_to_the_bottom()
         buffer = self.backend.screen.buffer
         # Needed for Break Function
@@ -274,12 +279,12 @@ class Terminal(QTextEdit):
                         self.MainCursor.insertText(same_text, self.charFormat)
                         same_text = ''
                     same_text += char.data
-                    if char.fg == 'default': self.charFormat.setForeground(colors["green"])
+                    if char.fg == 'default': self.charFormat.setForeground(self.textColors)
                     else: 
                         self.charFormat.setForeground(
                             colors[char.fg]) if char.fg != 'white' else self.charFormat.setForeground(colors['gray'])
 
-                    if char.bg == 'default': self.charFormat.setBackground(colors["black"])
+                    if char.bg == 'default': self.charFormat.setBackground(self.textBackground)
                     else:
                         self.charFormat.setBackground(colors[char.bg])
 
@@ -288,8 +293,10 @@ class Terminal(QTextEdit):
                 self.MainCursor.insertText(same_text, self.charFormat)
             # self.MainCursor.insertText(' ' * (85 - len(buffer[i])))
         self.backend.screen.dirty.clear()
+        # self.MainCursor.insertText("@")
+        if True:
+            self.setTextCursor(self.MainCursor)
         self.updateCursor()
-        self.MainCursor.insertText("@")
         # except Exception as e:
         #     print(e)
         #     pass
