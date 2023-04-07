@@ -49,7 +49,7 @@ class Terminal(QTextEdit):
 
     def __init__(self, ComboBoxSelection, host, username=None, password=None):
         super(Terminal, self).__init__()
-        #print(host)
+        # print(host)
         self.__initUI(ComboBoxSelection, host, username, password)
         self.lastTimeKeyWasPressed = time.perf_counter()
         self.PasteShortCut = QShortcut(QKeySequence('Ctrl+V'), self)
@@ -84,12 +84,14 @@ class Terminal(QTextEdit):
         self.setPalette(self.Colors)
         self.setFont(self.Font)
 
-        #The Cursor that gets displayed
+        # The cursor that writes current screen
         self.MainCursor = self.textCursor()
-        #The Cursor that stays above the terminal and write down history that comes in
+        # The Cursor that gets displayed
+        self.DisplayedCursor = self.textCursor()
+        # The Cursor that stays above the terminal and write down history that comes in
         self.HistoryCursor = self.textCursor()
 
-        #Character Formatting
+        # Character Formatting
         self.charFormat = QTextCharFormat()
         self.charFormat.setFont(self.Font)
 
@@ -102,7 +104,7 @@ class Terminal(QTextEdit):
         self.show()
         host = host.strip(' /')
         host = host.split('://')
-        #To-Do rewrite this as a dictionary
+        # To-Do rewrite this as a dictionary
         if len(host) == 2:
             if host[0] == "telnet":
                 self.backend = TelnetBackend(self.columns, self.lines, host[1])
@@ -129,13 +131,16 @@ class Terminal(QTextEdit):
                     self.columns, self.lines, host[0], username, password)
                 self.protocol = 2
         self.Clear_Last_24_lines()
-        self.HistoryCursor.movePosition(QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor)
+        self.HistoryCursor.movePosition(
+            QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor)
         self.HistoryCursor.insertText("!!!!")
         self.timerID = self.startTimer(1)
+        self.LastPos = (1, 1)
 
     def Clear_Last_24_lines(self):
         x = ' ' * (self.columns) + '\n'
         self.MainCursor.insertText(x * self.lines)
+        self.MainCursor.deletePreviousChar()
 
     def Copy(self):
         data = QMimeData()
@@ -155,15 +160,7 @@ class Terminal(QTextEdit):
         else:
             self.BreakFeatureTimer.start()
             self.CursorColor = QColorConstants.Red
-        self.updateCursor()
-
-    def updateCursor(self):
-        self.Move_Cursor_to_desired_line(self.backend.screen.cursor.y)
-        self.MainCursor.movePosition(QTextCursor.MoveOperation.Right,
-                                     QTextCursor.MoveMode.MoveAnchor, self.backend.screen.cursor.x)
-        self.MainCursor.insertText("@")
-        self.MainCursor.insertText('\n')
-        self.MainCursor.deletePreviousChar()
+        # self.updateCursor()
 
     def BreakIntoRommon(self):
         self.backend.write(b'\x03')
@@ -178,10 +175,18 @@ class Terminal(QTextEdit):
         self.backend.write(bytes(QApplication.clipboard().text(), 'utf-8'))
 
     def paintEvent(self, a0: QPaintEvent) -> None:
+        super(Terminal, self).paintEvent(a0)
         p = QPainter(self.viewport())
-        p.fillRect(self.cursorRect(self.MainCursor),
-                    self.CursorColor)
-        return super().paintEvent(a0)
+        self.LastPos = (self.backend.screen.cursor.x,
+                        self.backend.screen.cursor.y)
+        self.Move_Cursor_to_desired_line(
+            self.backend.screen.cursor.y + 1, self.DisplayedCursor)
+        self.DisplayedCursor.movePosition(QTextCursor.MoveOperation.Right,
+                                          QTextCursor.MoveMode.MoveAnchor, self.backend.screen.cursor.x)
+        p.setPen(self.CursorColor)
+        rect = self.cursorRect(self.DisplayedCursor)
+        rect.setWidth(0)
+        p.drawRect(rect)
 
     def keyPressEvent(self, e: QKeyEvent) -> None:
         self.lastTimeKeyWasPressed = time.perf_counter()
@@ -207,67 +212,46 @@ class Terminal(QTextEdit):
 
     def Push_History_to_the_bottom(self):
         if not self.backend.screen.history.top:
-            print('No history')
+            # No history
             return
-        while self.backend.screen.history.top:
-            #Top line
-            line = self.backend.screen.history.top.pop()
-            # # string of characters that are using the same formatting
-            # same_text = ""
-            # for_debugging = ''
-            # # saving previous character to compare coloring
-            # pre_char = None
-            # for j in line:
-            #     char = line[j]
-            #     for_debugging += char.data
-            #     if pre_char and char.bg == pre_char.bg and char.fg == pre_char.fg:
-            #         same_text += char.data
-            #         continue
-            #     else:
-            #         if same_text != '':
-            #             # self.HistoryCursor.insertText(same_text, self.charFormat)
-            #             print("Pushed2", same_text)
-            #             same_text = ''
-            #         same_text += char.data
-            #         if char.fg == 'default': self.charFormat.setForeground(colors["green"])
-            #         else: 
-            #             self.charFormat.setForeground(
-            #                 colors[char.fg]) if char.fg != 'white' else self.charFormat.setForeground(colors['gray'])
+        #Change this to rewriting instead of moving up, these solution will not work is user changes tabs.
+        lenght_of_history = self.backend.screen.history.top.__len__()
+        self.Move_Cursor_to_desired_line(line_num=1, cursor=self.HistoryCursor)
+        self.HistoryCursor.movePosition(
+            QTextCursor.MoveOperation.Down, QTextCursor.MoveMode.MoveAnchor, lenght_of_history)
+        self.HistoryCursor.movePosition(
+            QTextCursor.MoveOperation.EndOfLine, QTextCursor.MoveMode.MoveAnchor)
+        self.HistoryCursor.insertText(
+            '\n' * lenght_of_history, self.charFormat)
+        self.backend.screen._reset_history()
 
-            #         if char.bg == 'default': self.charFormat.setBackground(colors["black"])
-            #         else:
-            #             self.charFormat.setBackground(colors[char.bg])
-            #         pre_char = char
-            # if same_text != '':
-            #     same_text = ''
-            self.HistoryCursor.insertText("\n", self.charFormat)
-            self.HistoryCursor.movePosition(QTextCursor.MoveOperation.Down, QTextCursor.MoveMode.MoveAnchor)
-            # for_debugging = ''
-        pass
-
-    def Move_Cursor_to_desired_line(self, line_num):
-        self.MainCursor.movePosition(QTextCursor.MoveOperation.End, QTextCursor.MoveMode.MoveAnchor)
-        self.MainCursor.movePosition(QTextCursor.MoveOperation.Up, QTextCursor.MoveMode.MoveAnchor, self.lines - line_num)
-        self.MainCursor.movePosition(QTextCursor.MoveOperation.StartOfLine, QTextCursor.MoveMode.MoveAnchor)
+    def Move_Cursor_to_desired_line(self, line_num, cursor: QTextCursor):
+        cursor.movePosition(QTextCursor.MoveOperation.End,
+                            QTextCursor.MoveMode.MoveAnchor)
+        cursor.movePosition(QTextCursor.MoveOperation.Up,
+                            QTextCursor.MoveMode.MoveAnchor, self.lines - line_num)
+        cursor.movePosition(QTextCursor.MoveOperation.StartOfLine,
+                            QTextCursor.MoveMode.MoveAnchor)
 
     def WriteToUI(self):
-        pass
-        # try:
-        # Needed for character formatting
-        # self.MainCursor.deletePreviousChar()
         self.Push_History_to_the_bottom()
         buffer = self.backend.screen.buffer
-        # Needed for Break Function
         screen = self.backend.screen.display
-        for i in self.backend.screen.dirty:
+        dirty = self.backend.screen.dirty
+        for i in dirty:
             line = buffer[i]
             string = screen[i - 1]
             if self.BreakFeatureTimer.isActive():
                 if re.search('rom.*>', string) != None or re.search("load.*>", string) or re.search("swit.*:", string):
                     self.SwitchBreakFeature()
             pre_char = None
-            self.Move_Cursor_to_desired_line(line_num=i)
-            self.MainCursor.movePosition(QTextCursor.MoveOperation.EndOfLine, QTextCursor.MoveMode.KeepAnchor)
+            # print(i)
+            self.Move_Cursor_to_desired_line(
+                line_num=i+1, cursor=self.MainCursor)
+            self.MainCursor.movePosition(
+                QTextCursor.MoveOperation.EndOfLine, QTextCursor.MoveMode.KeepAnchor)
+            # Very important
+            self.MainCursor.removeSelectedText()
             same_text = ''
             for j in buffer[i]:
                 char = line[j]
@@ -279,30 +263,31 @@ class Terminal(QTextEdit):
                         self.MainCursor.insertText(same_text, self.charFormat)
                         same_text = ''
                     same_text += char.data
-                    if char.fg == 'default': self.charFormat.setForeground(self.textColors)
-                    else: 
+                    if char.fg == 'default':
+                        self.charFormat.setForeground(self.textColors)
+                    else:
                         self.charFormat.setForeground(
                             colors[char.fg]) if char.fg != 'white' else self.charFormat.setForeground(colors['gray'])
 
-                    if char.bg == 'default': self.charFormat.setBackground(self.textBackground)
+                    if char.bg == 'default':
+                        self.charFormat.setBackground(self.textBackground)
                     else:
                         self.charFormat.setBackground(colors[char.bg])
 
                     pre_char = char
             if same_text != '':
                 self.MainCursor.insertText(same_text, self.charFormat)
-            # self.MainCursor.insertText(' ' * (85 - len(buffer[i])))
         self.backend.screen.dirty.clear()
-        # self.MainCursor.insertText("@")
-        if True:
-            self.setTextCursor(self.MainCursor)
-        self.updateCursor()
-        # except Exception as e:
-        #     print(e)
-        #     pass
+        self.MainCursor.movePosition(
+            QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor)
+        self.MainCursor.insertText('\n')
+        self.MainCursor.deletePreviousChar()
+        # self.updateCursor()
+        # if True:
+        #     self.setTextCursor(self.MainCursor)
 
     def closeEvent(self, a0: QCloseEvent) -> None:
-        #print('closed')
+        # print('closed')
         self.killTimer(self.timerID)
         self.backend.close()
         self.BreakFeatureTimer.stop()
