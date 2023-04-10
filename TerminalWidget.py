@@ -214,16 +214,20 @@ class Terminal(QTextEdit):
         if not self.backend.screen.history.top:
             # No history
             return
-        #Change this to rewriting instead of moving up, these solution will not work is user changes tabs.
+        #Change this to rewriting instead of moving up, these solution will not work if user changes tabs.
         lenght_of_history = self.backend.screen.history.top.__len__()
-        self.Move_Cursor_to_desired_line(line_num=1, cursor=self.HistoryCursor)
-        self.HistoryCursor.movePosition(
-            QTextCursor.MoveOperation.Down, QTextCursor.MoveMode.MoveAnchor, lenght_of_history)
-        self.HistoryCursor.movePosition(
-            QTextCursor.MoveOperation.EndOfLine, QTextCursor.MoveMode.MoveAnchor)
-        self.HistoryCursor.insertText(
-            '\n' * lenght_of_history, self.charFormat)
-        self.backend.screen._reset_history()
+        if lenght_of_history <= 24:
+            self.Move_Cursor_to_desired_line(line_num=1, cursor=self.HistoryCursor)
+            self.HistoryCursor.movePosition(
+                QTextCursor.MoveOperation.Down, QTextCursor.MoveMode.MoveAnchor, lenght_of_history)
+            self.HistoryCursor.movePosition(
+                QTextCursor.MoveOperation.EndOfLine, QTextCursor.MoveMode.MoveAnchor)
+            self.HistoryCursor.insertText(
+                '\n' * lenght_of_history, self.charFormat)
+            self.backend.screen._reset_history()
+            return
+        # Check if i need to use top or bottom variable.
+        
 
     def Move_Cursor_to_desired_line(self, line_num, cursor: QTextCursor):
         cursor.movePosition(QTextCursor.MoveOperation.End,
@@ -283,8 +287,8 @@ class Terminal(QTextEdit):
         self.MainCursor.insertText('\n')
         self.MainCursor.deletePreviousChar()
         # self.updateCursor()
-        # if True:
-        #     self.setTextCursor(self.MainCursor)
+        if True:
+            self.setTextCursor(self.DisplayedCursor)
 
     def closeEvent(self, a0: QCloseEvent) -> None:
         # print('closed')
