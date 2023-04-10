@@ -215,18 +215,40 @@ class Terminal(QTextEdit):
             # No history
             return
         #Change this to rewriting instead of moving up, these solution will not work if user changes tabs.
-        lenght_of_history = self.backend.screen.history.top.__len__()
-        if lenght_of_history <= 24:
-            self.Move_Cursor_to_desired_line(line_num=1, cursor=self.HistoryCursor)
-            self.HistoryCursor.movePosition(
-                QTextCursor.MoveOperation.Down, QTextCursor.MoveMode.MoveAnchor, lenght_of_history)
-            self.HistoryCursor.movePosition(
-                QTextCursor.MoveOperation.EndOfLine, QTextCursor.MoveMode.MoveAnchor)
-            self.HistoryCursor.insertText(
-                '\n' * lenght_of_history, self.charFormat)
-            self.backend.screen._reset_history()
-            return
         # Check if i need to use top or bottom variable.
+        self.Move_Cursor_to_desired_line(1, self.HistoryCursor)
+        self.HistoryCursor.movePosition(QTextCursor.MoveOperation.StartOfLine, QTextCursor.MoveMode.MoveAnchor)
+        history = self.backend.screen.history.top
+        while history:
+            line = history.popleft()
+            same_text = ''
+            pre_char = None
+            for j in line:
+                char = line[j]
+                if pre_char and char.bg == pre_char.bg and char.fg == pre_char.fg:
+                    same_text += char.data
+                    continue
+                else:
+                    if same_text != '':
+                        self.HistoryCursor.insertText(same_text, self.charFormat)
+                        same_text = ''
+                    same_text += char.data
+                    if char.fg == 'default':
+                        self.charFormat.setForeground(self.textColors)
+                    else:
+                        self.charFormat.setForeground(
+                            colors[char.fg]) if char.fg != 'white' else self.charFormat.setForeground(colors['gray'])
+
+                    if char.bg == 'default':
+                        self.charFormat.setBackground(self.textBackground)
+                    else:
+                        self.charFormat.setBackground(colors[char.bg])
+
+                    pre_char = char
+            if same_text != '':
+                self.HistoryCursor.insertText(same_text, self.charFormat)
+            self.HistoryCursor.insertText('\n')
+
         
 
     def Move_Cursor_to_desired_line(self, line_num, cursor: QTextCursor):
@@ -242,14 +264,14 @@ class Terminal(QTextEdit):
         buffer = self.backend.screen.buffer
         screen = self.backend.screen.display
         dirty = self.backend.screen.dirty
-        for i in dirty:
-            line = buffer[i]
+        while dirty:
+            i = dirty.pop()
+            line = buffer[i].copy()
             string = screen[i - 1]
             if self.BreakFeatureTimer.isActive():
                 if re.search('rom.*>', string) != None or re.search("load.*>", string) or re.search("swit.*:", string):
                     self.SwitchBreakFeature()
             pre_char = None
-            # print(i)
             self.Move_Cursor_to_desired_line(
                 line_num=i+1, cursor=self.MainCursor)
             self.MainCursor.movePosition(
@@ -257,7 +279,7 @@ class Terminal(QTextEdit):
             # Very important
             self.MainCursor.removeSelectedText()
             same_text = ''
-            for j in buffer[i]:
+            for j in line:
                 char = line[j]
                 if pre_char and char.bg == pre_char.bg and char.fg == pre_char.fg:
                     same_text += char.data
@@ -281,12 +303,8 @@ class Terminal(QTextEdit):
                     pre_char = char
             if same_text != '':
                 self.MainCursor.insertText(same_text, self.charFormat)
-        self.backend.screen.dirty.clear()
         self.MainCursor.movePosition(
             QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor)
-        self.MainCursor.insertText('\n')
-        self.MainCursor.deletePreviousChar()
-        # self.updateCursor()
         if True:
             self.setTextCursor(self.DisplayedCursor)
 
