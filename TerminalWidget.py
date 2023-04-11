@@ -107,37 +107,22 @@ class Terminal(QTextEdit):
         host = host.strip(' /')
         host = host.split('://')
         # To-Do rewrite this as a dictionary
-        if len(host) == 2:
-            if host[0] == "telnet":
-                self.backend = TelnetBackend(self.columns, self.lines, host[1])
-                self.protocol = 1
-            elif host[0] == 'ssh':
-                self.backend = SSHBackend(
-                    self.columns, self.lines, host[1], username, password)
-                self.protocol = 2
-            else:
-                if ComboBoxSelection == 'Telnet':
-                    self.backend = TelnetBackend(
-                        self.columns, self.lines, host[1])
-                    self.protocol = 1
-                elif ComboBoxSelection == 'SSH':
-                    self.backend = SSHBackend(
-                        self.columns, self.lines, host[1], username, password)
-                    self.protocol = 2
-        elif len(host) == 1:
-            if ComboBoxSelection == 'Telnet':
-                self.backend = TelnetBackend(self.columns, self.lines, host[0])
-                self.protocol = 1
-            elif ComboBoxSelection == 'SSH':
-                self.backend = SSHBackend(
-                    self.columns, self.lines, host[0], username, password)
-                self.protocol = 2
+        clients = {
+            'telnet': TelnetBackend,
+            'ssh': SSHBackend
+        }
+        try:
+            self.backend = clients[host[0].lower()](self.columns, self.lines, host[-1], username, password) if \
+                len(host) == 2 else clients[ComboBoxSelection.lower()](self.columns, self.lines, host[-1], username, password)
+            self.protocol = 1 if isinstance(self.backend, TelnetBackend) else 2
+        except KeyError:
+            self.backend = clients[ComboBoxSelection.lower()](self.columns, self.lines, host[-1], username, password)
+            self.protocol = 1 if isinstance(self.backend, TelnetBackend) else 2
+            
         self.Clear_Last_24_lines()
         self.HistoryCursor.movePosition(
             QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor)
-        self.HistoryCursor.insertText("!!!!")
         self.timerID = self.startTimer(1)
-        self.LastPos = (1, 1)
 
     def Clear_Last_24_lines(self):
         x = ' ' * (self.columns) + '\n'
@@ -162,7 +147,6 @@ class Terminal(QTextEdit):
         else:
             self.BreakFeatureTimer.start()
             self.CursorColor = QColorConstants.Red
-        # self.updateCursor()
 
     def BreakIntoRommon(self):
         self.backend.write(b'\x03')
@@ -179,8 +163,6 @@ class Terminal(QTextEdit):
     def paintEvent(self, a0: QPaintEvent) -> None:
         super(Terminal, self).paintEvent(a0)
         p = QPainter(self.viewport())
-        self.LastPos = (self.backend.screen.cursor.x,
-                        self.backend.screen.cursor.y)
         self.Move_Cursor_to_desired_line(
             self.backend.screen.cursor.y + 1, self.DisplayedCursor)
         self.DisplayedCursor.movePosition(QTextCursor.MoveOperation.Right,
@@ -216,8 +198,6 @@ class Terminal(QTextEdit):
         if not self.backend.screen.history.top:
             # No history
             return
-        #Change this to rewriting instead of moving up, these solution will not work if user changes tabs.
-        # Check if i need to use top or bottom variable.
         self.Move_Cursor_to_desired_line(1, self.HistoryCursor)
         self.HistoryCursor.movePosition(QTextCursor.MoveOperation.StartOfLine, QTextCursor.MoveMode.MoveAnchor)
         history = self.backend.screen.history.top

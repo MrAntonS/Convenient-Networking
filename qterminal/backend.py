@@ -52,7 +52,7 @@ class PtyBackend(BaseBackend):
 
 
 class TelnetBackend(BaseBackend):
-    def __init__(self, width, height, host):
+    def __init__(self, width, height, host, *args):
         super(TelnetBackend, self).__init__(width, height)
         self.host = host
         self.thread = threading.Thread(target=self.connect)
