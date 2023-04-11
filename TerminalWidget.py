@@ -290,7 +290,7 @@ class Terminal(QTextEdit):
         self.MainCursor.insertText('\n')
         self.MainCursor.deletePreviousChar()
         if self.track_cursor:
-            self.setTextCursor(self.DisplayedCursor)
+            self.verticalScrollBar().setSliderPosition(self.verticalScrollBar().maximum())
 
     def closeEvent(self, a0: QCloseEvent) -> None:
         # print('closed')
