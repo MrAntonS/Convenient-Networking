@@ -96,7 +96,7 @@ class MainWindow(QMainWindow):
         self.openTemplate = self.menu.addAction("Open Template File")
         self.openTemplate.triggered.connect(self.ReadFile)
         self.connectionBar.connectbtn.clicked.connect(self.AddNewTab)
-        # self.stopScrollingBtn.triggered.connect(self.stopScrolling)
+        self.stopScrollingBtn.triggered.connect(self.stopScrolling)
         self.Colors = QPalette()
         self.setPalette(self.Colors)
         self.TabWidget.setPalette(self.Colors)
@@ -170,10 +170,10 @@ class MainWindow(QMainWindow):
         self.TabWidget.widget(ind).close()
         self.TabWidget.removeTab(ind)
 
-    # def stopScrolling(self):
-    #     for i in range(self.TabWidget.count()):
-    #         self.TabWidget.widget(
-    #             i).track_cursor = not self.TabWidget.widget(i).track_cursor
+    def stopScrolling(self):
+        for i in range(self.TabWidget.count()):
+            self.TabWidget.widget(
+                i).mainWidget.term.track_cursor = not self.TabWidget.widget(i).mainWidget.term.track_cursor
 
     def checkForTabScrollBtn(self):
         for child in self.TabWidget.findChildren(QToolButton):

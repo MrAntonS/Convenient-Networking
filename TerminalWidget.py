@@ -55,8 +55,10 @@ class Terminal(QTextEdit):
         self.PasteShortCut = QShortcut(QKeySequence('Ctrl+V'), self)
         self.CopyShortCut = QShortcut(QKeySequence('Ctrl+Shift+C'), self)
         self.CopyAndBreakShortCut = QShortcut(QKeySequence('Ctrl+C'), self)
+        self.space = QShortcut(QKeySequence('Space'), self)
         self.BreakIntoRommonShortCut = QShortcut(
             QKeySequence('Ctrl+Shift+R'), self)
+        self.space.activated.connect(lambda: self.backend.write(' '))
         self.BreakIntoRommonShortCut.activated.connect(self.SwitchBreakFeature)
         self.PasteShortCut.activated.connect(self.Paste)
         self.CopyShortCut.activated.connect(self.Copy)
@@ -83,7 +85,7 @@ class Terminal(QTextEdit):
             QPalette().ColorRole["Window"], QColorConstants.Black)
         self.setPalette(self.Colors)
         self.setFont(self.Font)
-
+        self.track_cursor = True
         # The cursor that writes current screen
         self.MainCursor = self.textCursor()
         # The Cursor that gets displayed
@@ -305,7 +307,9 @@ class Terminal(QTextEdit):
                 self.MainCursor.insertText(same_text, self.charFormat)
         self.MainCursor.movePosition(
             QTextCursor.MoveOperation.Start, QTextCursor.MoveMode.MoveAnchor)
-        if True:
+        self.MainCursor.insertText('\n')
+        self.MainCursor.deletePreviousChar()
+        if self.track_cursor:
             self.setTextCursor(self.DisplayedCursor)
 
     def closeEvent(self, a0: QCloseEvent) -> None:
