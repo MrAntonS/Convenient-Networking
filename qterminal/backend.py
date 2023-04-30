@@ -160,7 +160,7 @@ class SSHBackend(BaseBackend):
         self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
             self.ssh_client.connect(
-                self.ip, username=self.username, password=self.password, timeout=1)
+                self.ip, username=self.username, password=self.password, allow_agent=False,look_for_keys=False, timeout=1)
             self.tries = 3
             self.connected = True
         except Exception as e:
