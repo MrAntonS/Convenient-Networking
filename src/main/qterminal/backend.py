@@ -160,17 +160,18 @@ class SSHBackend(BaseBackend):
         self.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
             self.ssh_client.connect(
-                self.ip, username=self.username, password=self.password, allow_agent=False,look_for_keys=False, timeout=1)
+                self.ip, username=self.username, password=self.password, allow_agent=True,look_for_keys=False, timeout=1)
+            self.GotUserNameAndPassword = True
             self.tries = 3
             self.connected = True
         except Exception as e:
-            print(e)
             if self.tries:
                 self.tries -= 1
                 self.username = ''
                 self.password = ''
                 self.GotUserNameAndPassword = False
                 self.write_to_screen(b'\r\n')
+                self.write_to_screen(bytes(str(e)+'\r\n', 'utf-8'))
                 del self.thread
                 self.thread = threading.Thread(target=self.connect)
                 self.GetUserNameAndPassword()
@@ -191,6 +192,7 @@ class SSHBackend(BaseBackend):
         mux.add_backend(self)
 
     def reconnect(self):
+        self.connected = True
         self.thread = threading.Thread(target=self.connect)
         self.tries = 3
         self.thread.start()
@@ -200,7 +202,7 @@ class SSHBackend(BaseBackend):
         return self.channel
 
     def write(self, data):
-        if self.GotUserNameAndPassword:
+        if self.GotUserNameAndPassword and not self.thread.is_alive():
             try:
                 if isinstance(data, str):
                     self.channel.send(data.encode("utf-8"))
@@ -209,7 +211,7 @@ class SSHBackend(BaseBackend):
             except:
                 self.connected = False
                 pass
-        else:
+        elif not self.thread.is_alive():
             if self.username == '' or self.username[-1] != '\r':
                 if data == '\x7f':
                     if self.username != '':
@@ -230,14 +232,12 @@ class SSHBackend(BaseBackend):
                     self.password += data
                 if data == '\r':
                     self.write_to_screen(b'\n')
-                    self.GotUserNameAndPassword = True
                     self.username, self.password = self.username[:-
                                                                  1], self.password[:-1]
                     self.thread.start()
             else:
                 self.username, self.password = self.username[:-
                                                              1], self.password[-1]
-                self.GotUserNameAndPassword = True
 
     def read(self):
         try:

@@ -73,6 +73,10 @@ class MainWindow(QMainWindow):
         self.TabThread = threading.Thread(target=self.CheckForNewTabs)
         self.TabThread.daemon = True
         self.AddTab.connect(self.AddNewTab)
+        self.Tab = QShortcut(QKeySequence("Ctrl+Tab"), self)
+        self.Tab.activated.connect(lambda: self.TabWidget.setCurrentIndex((self.TabWidget.currentIndex() + 1) % self.TabWidget.count()))
+        self.TabBack = QShortcut(QKeySequence("Ctrl+Shift+Tab"), self)
+        self.TabBack.activated.connect(lambda: self.TabWidget.setCurrentIndex((self.TabWidget.currentIndex() - 1) % self.TabWidget.count()))
         self.TabThread.start()
 
     def initUi(self):

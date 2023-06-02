@@ -55,7 +55,10 @@ class Terminal(QTextEdit):
         self.PasteShortCut = QShortcut(QKeySequence('Ctrl+V'), self)
         self.CopyShortCut = QShortcut(QKeySequence('Ctrl+Shift+C'), self)
         self.CopyAndBreakShortCut = QShortcut(QKeySequence('Ctrl+C'), self)
+        self.ArrowUp = QShortcut(QKeySequence('up'), self)
+        self.ArrowDown = QShortcut(QKeySequence(Qt.Key.Key_Down), self)
         self.space = QShortcut(QKeySequence('Space'), self)
+        self.CtrlSpace = QShortcut(QKeySequence('Ctrl+Space'), self)
         self.BreakIntoRommonShortCut = QShortcut(
             QKeySequence('Ctrl+Shift+R'), self)
         self.space.activated.connect(lambda: self.backend.write(' '))
@@ -63,6 +66,9 @@ class Terminal(QTextEdit):
         self.PasteShortCut.activated.connect(self.Paste)
         self.CopyShortCut.activated.connect(self.Copy)
         self.CopyAndBreakShortCut.activated.connect(self.CopyAndBreak)
+        self.ArrowUp.activated.connect(lambda: self.backend.write(keymap[Qt.Key.Key_Up]))
+        self.ArrowDown.activated.connect(lambda: self.backend.write(keymap[Qt.Key.Key_Down]))
+        self.CtrlSpace.activated.connect(lambda: self.backend.write(" "))
 
     def __initUI(self, ComboBoxSelection, host, username=None, password=None):
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -147,6 +153,8 @@ class Terminal(QTextEdit):
         else:
             self.BreakFeatureTimer.start()
             self.CursorColor = QColorConstants.Red
+        self.DisplayedCursor.insertText('\n')
+        self.DisplayedCursor.deletePreviousChar()
 
     def BreakIntoRommon(self):
         self.backend.write(b'\x03')
@@ -320,10 +328,11 @@ class QTerminal(QWidget):
         self.layout.addWidget(self.reconnectBtn)
 
     def reconnect(self):
-        self.term.backend.reconnect()
-        self.term.timerID = self.term.startTimer(1)
         self.reconnectBtn.hide()
         self.term.show()
+        self.term.backend.reconnect()
+        self.term.timerID = self.term.startTimer(1)
+        self.term.setFocus()
 
     def __initFailedUI(self):
         if self.reconnectBtn.isVisible():
