@@ -143,17 +143,15 @@ class SSHBackend(BaseBackend):
         self.thread = threading.Thread(target=self.connect)
         self.ssh_client = None
         self.channel = None
-        if self.GotUserNameAndPassword:
-            self.thread.start()
-        else:
-            self.GetUserNameAndPassword()
-
+        self.connected = True
+        self.thread.start()
     def GetUserNameAndPassword(self):
         self.connected = True
         if self.username == '':
             self.write_to_screen(b'login:')
         else:
             self.write_to_screen(b'password:')
+        
 
     def connect(self):
         self.ssh_client = paramiko.SSHClient()
