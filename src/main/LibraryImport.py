@@ -12,7 +12,6 @@ import logging
 import threading
 import select
 
-
 class Telnet_(telnetlib.Telnet):
     def write(self, buffer):
         """Write a string to the socket, doubling any IAC characters.

@@ -3,58 +3,7 @@ from ConsoleWidget import ConsoleWidget
 from ConnectionWidget import Connection_Window
 from TemplateWidget import TemplateWidget
 from qterminal.mux import mux
-
-
-class ConnectionBar(QWidget):
-    def __init__(self):
-        super(ConnectionBar, self).__init__()
-        self.connectLayout = QHBoxLayout()
-        self.connectIns = QHBoxLayout()
-        self.hostlbl = QLabel()
-        self.hostlbl.setText("Host:")
-        self.hostlbl.setSizePolicy(QSizePolicy(
-            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed))
-        self.portlbl = QLabel()
-        self.portlbl.setText("Port:")
-        self.portlbl.setSizePolicy(QSizePolicy(
-            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed))
-        self.host = QLineEdit()
-        self.host.setFixedWidth(200)
-        self.host.setSizePolicy(QSizePolicy(
-            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed))
-        self.protocolComboBox = QComboBox()
-        self.protocolComboBox.addItem("Telnet")
-        self.protocolComboBox.addItem("SSH")
-        self.connectbtn = QPushButton()
-        self.connectbtn.setText("Connect")
-        self.connectbtn.setFixedWidth(70)
-        self.connectbtn.setSizePolicy(QSizePolicy(
-            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed))
-        self.port = QLineEdit()
-        self.port.setFixedWidth(100)
-        self.port.setSizePolicy(QSizePolicy(
-            QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed))
-        self.TimerLabel = QLabel()
-        self.TimerLabel.setText('No connection')
-        self.connectIns.addWidget(self.protocolComboBox)
-        self.connectIns.addWidget(self.hostlbl)
-        self.connectIns.addWidget(self.host)
-        self.connectIns.addWidget(self.portlbl)
-        self.connectIns.addWidget(self.port)
-        self.connectIns.addWidget(self.connectbtn)
-        self.copyright = QLabel()
-        self.copyright.setText("Made by Anton Saenko")
-        self.connectIns.addWidget(self.copyright)
-        self.connectLayout.addLayout(self.connectIns)
-        self.connectLayout.addSpacerItem(QSpacerItem(
-            600, 0, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum))
-        self.connectLayout.addWidget(self.TimerLabel)
-        self.host.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
-        self.port.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
-        self.protocolComboBox.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
-        self.connectbtn.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
-        self.setLayout(self.connectLayout)
-
+from TopBar import TopBar
 
 class MainWindow(QMainWindow):
     AddTab = pyqtSignal(str)
@@ -82,7 +31,7 @@ class MainWindow(QMainWindow):
     def initUi(self):
         self.cntWidget = QWidget()
         self.VboxLayout = QVBoxLayout()
-        self.connectionBar = ConnectionBar()
+        self.connectionBar = TopBar()
         self.VboxLayout.addWidget(self.connectionBar)
         self.setWindowTitle("ConvNet")
         self.setGeometry(1000, 300, 1000, 700)
@@ -97,7 +46,7 @@ class MainWindow(QMainWindow):
         self.menu = self.menuBar()
         self.stopScrollingBtn = self.menu.addAction(
             "Stop scrolling to the bottom")
-        self.openTemplate = self.menu.addAction("Open Template File")
+        
         self.openTemplate.triggered.connect(self.ReadFile)
         self.connectionBar.connectbtn.clicked.connect(self.AddNewTab)
         self.stopScrollingBtn.triggered.connect(self.stopScrolling)
@@ -110,6 +59,11 @@ class MainWindow(QMainWindow):
         self.TabWidget.tabCloseRequested.connect(self.CloseTab)
         self.show()
         self.startTimer(100)
+
+    def initMenu(self):
+        #TODO Push folder and file creator to github
+        self.openTemplate = self.menu.addMenu("Templates")
+        
 
     def timerEvent(self, a0: QTimerEvent) -> None:
         currWidget = self.TabWidget.currentWidget()
