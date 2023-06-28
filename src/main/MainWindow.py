@@ -4,6 +4,8 @@ from ConnectionWidget import Connection_Window
 from TemplateWidget import TemplateWidget
 from qterminal.mux import mux
 from TopBar import TopBar
+from shared.GetFile import getDictFromPickleFile, dumpDictToPickleFile, getEntryInDict, appendToPickleFile
+import base64
 
 class MainWindow(QMainWindow):
     AddTab = pyqtSignal(str)
@@ -46,8 +48,9 @@ class MainWindow(QMainWindow):
         self.menu = self.menuBar()
         self.stopScrollingBtn = self.menu.addAction(
             "Stop scrolling to the bottom")
-        
-        self.openTemplate.triggered.connect(self.ReadFile)
+        self.openTemplate = self.menu.addMenu("Templates")
+        self.initTemplateMenu()
+        # self.openTemplate.triggered.connect(self.ReadFile)
         self.connectionBar.connectbtn.clicked.connect(self.AddNewTab)
         self.stopScrollingBtn.triggered.connect(self.stopScrolling)
         self.Colors = QPalette()
@@ -60,10 +63,53 @@ class MainWindow(QMainWindow):
         self.show()
         self.startTimer(100)
 
-    def initMenu(self):
-        #TODO Push folder and file creator to github
-        self.openTemplate = self.menu.addMenu("Templates")
+    def initTemplateMenu(self, templates_incom = None, menu = None):
+        self.actions_ = []
+        if templates_incom == None:
+            menu = self.openTemplate
+            self.templates = templates = getDictFromPickleFile("templates.data")
+        else:
+            templates = templates_incom
+        for entry in templates:
+            if isinstance(templates[entry], dict):
+                print(entry, "is dict")
+                menu_embedded = menu.addMenu(entry)
+                self.initTemplateMenu(templates[entry], menu_embedded)
+            else: 
+                action = menu.addAction(entry)
+                func = self.initTemplateEditor(templates[entry])
+                action.triggered.connect(func)
+                self.actions_.append(action)
+                print(f"added function {entry} with {templates[entry]}")
+
+        if templates_incom == None:
+            action = menu.addAction("Export")
+            action.triggered.connect(self.importTest)
+            share = menu.addAction("Share")
+            share.triggered.connect(self.shareTemplateTest)
         
+    def initTemplateEditor(self, prompt):
+        def rememberPrompt():
+            print(prompt)
+        return rememberPrompt
+        
+    def shareTemplateTest(self):
+        #TODO migrate this code (actual implementation) to shared and implement clipboards usage
+        sample_string = "conf t\nshow ip int br\nexit\n\rasddddddasssssssssssss"*100
+        sample_string_bytes = sample_string.encode("ascii")
+  
+        base64_bytes = base64.b64encode(sample_string_bytes)
+        base64_string = base64_bytes.decode("ascii")
+
+        sample_string_bytes = base64.b64decode(base64_bytes)
+        sample_string1 = sample_string_bytes.decode("ascii")
+        print(base64_string)
+        print(sample_string1)
+
+    def importTest(self):
+        appendToPickleFile({"Test1": {"Test_embed": "YAY", "ASDWQEQWEQWD": "Success"}}, 'templates.data')
+        self.openTemplate.clear()
+        self.initTemplateMenu()
 
     def timerEvent(self, a0: QTimerEvent) -> None:
         currWidget = self.TabWidget.currentWidget()
