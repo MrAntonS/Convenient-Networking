@@ -89,9 +89,10 @@ class MainWindow(QMainWindow):
             share.triggered.connect(self.shareTemplateTest)
         
     def initTemplateEditor(self, prompt):
-        def rememberPrompt():
-            print(prompt)
-        return rememberPrompt
+        def initTemplateEditorInner():
+            self.templatewid = TemplateWidget(prompt, self.TabWidget.tabText(self.TabWidget.currentIndex()))
+            self.templatewid.show()
+        return initTemplateEditorInner
         
     def shareTemplateTest(self):
         #TODO migrate this code (actual implementation) to shared and implement clipboards usage
