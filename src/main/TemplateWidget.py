@@ -5,7 +5,7 @@ class TemplateEditor(QTextEdit):
         super(TemplateEditor, self).__init__()
         self.content = content
         self.setHtml(content)
-        self.startTimer(1000)
+        self.formatText(content)
 
     def timerEvent(self, e: QTimerEvent) -> None:
         print(self.textCursor().position())
@@ -18,7 +18,15 @@ class TemplateEditor(QTextEdit):
     def formatText(self, content):
         #TODO write a script to format text with syntax highlighting and auto replacement for variables
         result_string = ""
-        
+        self.variables = variableWidget.getAllVariables(content)
+        for variable in self.variables:
+            string = r'({{' + variable + r'[^}]*}})'
+            print(string)
+            p = re.compile(string)
+            print(content)
+            all_locations = re.finditer(p, content)
+            for i in all_locations:
+                print(i.span())
         
         pass
 

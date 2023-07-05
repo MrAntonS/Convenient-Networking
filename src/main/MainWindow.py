@@ -108,7 +108,7 @@ class MainWindow(QMainWindow):
         print(sample_string1)
 
     def importTest(self):
-        appendToPickleFile({"Test1": {"Test_embed": "<h1>YAY</h1> {{test}}", "ASDWQEQWEQWD": "Success"}}, 'templates.data')
+        appendToPickleFile({"Test1": {"Test_embed": "YAY {{test}}", "ASDWQEQWEQWD": "Success"}}, 'templates.data')
         self.openTemplate.clear()
         self.initTemplateMenu()
 
