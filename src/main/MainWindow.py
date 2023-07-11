@@ -7,6 +7,8 @@ from TopBar import TopBar
 from shared.GetFile import getDictFromPickleFile, dumpDictToPickleFile, getEntryInDict, appendToPickleFile
 import base64
 
+BASE_DIR = os.getcwd()
+
 class MainWindow(QMainWindow):
     AddTab = pyqtSignal(str)
 
@@ -67,7 +69,7 @@ class MainWindow(QMainWindow):
         self.actions_ = []
         if templates_incom == None:
             menu = self.openTemplate
-            self.templates = templates = getDictFromPickleFile("templates.data")
+            self.templates = templates = getDictFromPickleFile(f"{BASE_DIR}/templates.data")
         else:
             templates = templates_incom
         for entry in templates:
@@ -108,7 +110,7 @@ class MainWindow(QMainWindow):
         print(sample_string1)
 
     def importTest(self):
-        appendToPickleFile({"Test1": {"Test_embed": "YAY {{test}}", "ASDWQEQWEQWD": "Success"}}, 'templates.data')
+        appendToPickleFile({"Test1": {"Test_embed": "YAY {{test}}<br>{{testing}}", "ASDWQEQWEQWD": "Success"}}, 'templates.data')
         self.openTemplate.clear()
         self.initTemplateMenu()
 
