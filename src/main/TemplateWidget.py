@@ -3,37 +3,39 @@ from LibraryImport import *
 class TemplateEditor(QTextEdit):
     def __init__(self, content):
         super(TemplateEditor, self).__init__()
-        self.content = content
+        self.setReadOnly(True)
+        self.variables = variableWidget.getAllVariables(content)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
+
+        self.fonts = QFont()
+        self.fonts.setFamily("Consolas")
+        self.fonts.setPointSize(12)
+        self.setFont(self.fonts)
+
+        self.share = Share(self)
+        self.share.setFixedSize(30, 30)
+
         self.html = content
-        self.setHtml(self.html)
-        self.variables = variableWidget.getAllVariables(self.content)
-        self.variable_locations = self.getAllVarLocations(self.variables, self.content)
-        charStyle = QTextCharFormat()
-        charStyle.setForeground(QColorConstants.Cyan)
-        self.html = self.formatColor(self.formatText(self.content, self.variable_locations).split(chr(0x999)))
+        self.content = content
+        self.setPlainText(self.html)
+        self.content = self.toHtml()
+        self.html = self.formatText(self.content, self.variables)
         self.setHtml(self.html)
         self.cursorPositionBeforeChange = self.textCursor().position()
-        self.textChanged.connect(self.onTextChange)
 
-    def onTextChange(self):
-        #TODO ctrl+z will mess up the locations if you move cursor to different locations need to figure out how to handle that properly
-        isCursorInVar = self.checkCursorInVar(self.cursorPositionBeforeChange)
-        currentCursorPos = self.textCursor().position()
-        shift= currentCursorPos - self.cursorPositionBeforeChange
-        print(currentCursorPos)
-        if isCursorInVar:
-            variable, iter = isCursorInVar
-            start, end = self.variable_locations[variable][iter]
-            end += shift
-            if end >= start: self.variable_locations[variable][iter] = [start, end]
-            else: self.variable_locations[variable].pop(iter)
-        self.shiftPositions(self.cursorPositionBeforeChange, shift)
-        print(self.variable_locations)
-            
+
+    def resizeEvent(self, a0: QResizeEvent) -> None:
+        self.share.move(self.viewport().width() - 30, 0)
+        return super().resizeEvent(a0)
 
     def timerEvent(self, e: QTimerEvent) -> None:
-        print(self.toHtml())
         return super().timerEvent(e)
+
+    def connect_line_edits(self, field, text):
+        self.variables[field] = text
+        self.setHtml(self.formatText(self.content, self.variables))
 
     def keyPressEvent(self, e: QKeyEvent) -> None:
         self.cursorPositionBeforeChange = self.textCursor().position()
@@ -65,60 +67,36 @@ class TemplateEditor(QTextEdit):
                     return variable, iter
         return False
 
-    def formatColor(self, string_list):
-        string_list = string_list[0]
-        sorted_list_of_seq = sorted([item for sublist in list(self.variable_locations.values()) for item in sublist], reverse=True)
-        print(sorted_list_of_seq)
-        for seq in sorted_list_of_seq:
-            start, end = seq
-            string_list = f"{string_list[:start]}<span style=\"color: cyan;\">{string_list[start:end]}</span>{string_list[end:]}"
-        string_list = string_list.replace('\n', '<br>')
-        return string_list
-
-    def shiftPositions(self, startPos, shift):
-        for var in self.variable_locations:
-            for iter, seq in enumerate(self.variable_locations[var]):
-                if seq[0] > startPos:
-                    start, end = self.variable_locations[var][iter]
-                    self.variable_locations[var][iter] = (start + shift, end + shift)
-
-    def formatText(self, content, variable_locations_origin:dict, variable_value={"test": "WOOW", "testing": "BOO"}):
-        #TODO write a script to format text with syntax highlighting and auto replacement for variables
+    def formatText(self, content:str, variables:dict):
         result_string = content
-        variable_locations = variable_locations_origin
-        print(self.variables)
-        for variable_name in variable_locations:
-            for iter, location in enumerate(variable_locations[variable_name]):
-                start, end = location
-                value = variable_value[variable_name]
-                result_string = result_string[:start] + f"{value}" + result_string[end:]
-                shift = start+len(value) - end
-                self.shiftPositions(end, shift)
-                variable_locations[variable_name][iter] = [start, start+len(value)]
-        return result_string
+        for variable_name in variables:
+            value = self.variables[variable_name] if self.variables[variable_name] != '' else f"<span style=\"color: red;\">{variable_name.upper()}</span>"
+            result_string = re.sub("\{\{" + variable_name + "(\|[^}]*)?\}\}", f"<span style=\"color: cyan;\">{value}</span>", result_string)
+        return f"<span style=\"color: white;\">{result_string}</span>"
 
 class variableWidget(QWidget):
     def __init__(self, content):
         super(variableWidget, self).__init__()
+        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
         self.Vbox = QVBoxLayout()
         self.setLayout(self.Vbox)
         variables = variableWidget.getAllVariables(content)
+        self.line_edits = dict()
+        self.send_to_widget = lambda *args: None
         for variable in variables:
-            layout = QHBoxLayout()
-            layout.addSpacerItem(QSpacerItem(40, 0))
-            label = QLabel(text=variable + ":")
             line_edit = QLineEdit()
             line_edit.setText(variables[variable])
-            layout.addWidget(label)
-            layout.addWidget(line_edit)
-            layout.addSpacerItem(QSpacerItem(40, 0))
-            self.Vbox.addLayout(layout)
-        layout = QHBoxLayout()
-        layout.addSpacerItem(QSpacerItem(40, 0))
-        self.submit = QPushButton(text="Submit")
-        layout.addWidget(self.submit)
-        layout.addSpacerItem(QSpacerItem(40, 0))
-        self.Vbox.addLayout(layout)
+            line_edit.textChanged.connect(self.save_variable_name(variable))
+            line_edit.setPlaceholderText(variable.upper())
+            self.line_edits[variable] = line_edit
+            self.Vbox.addWidget(line_edit)
+        self.Vbox.addSpacerItem(QSpacerItem(0, 0, vPolicy=QSizePolicy.Policy.Expanding))
+
+
+    def save_variable_name(self, name):
+        def send_change_to_text_widget(text):
+            self.send_to_widget(name, text)
+        return send_change_to_text_widget
 
     def getAllVariables(content):
         vars = dict()
@@ -139,6 +117,17 @@ class variableWidget(QWidget):
                 continue
             vars[title] = suggested
         return vars
+        
+class Submit(QPushButton):
+    def __init__(self, *args, **kwargs):
+        super(Submit, self).__init__(*args, **kwargs)
+
+class Share(QPushButton):
+    def __init__(self, *args, **kwargs):
+        super(Share, self).__init__(*args, **kwargs)
+        self.setText('\U0001F517')
+        self.setFont(QFont('Arial', 12))
+
 class TemplateWidget(QWidget):
     def __init__(self, content, host):
         super(TemplateWidget, self).__init__()
@@ -147,15 +136,22 @@ class TemplateWidget(QWidget):
         pass
 
     def initUI(self, content):
-        self.mainLayout = QHBoxLayout()
+        self.mainLayout = QVBoxLayout()
+        self.innerLayout = QHBoxLayout()
         self.setLayout(self.mainLayout)
         self.setWindowTitle(self.hostname)
 
         self.templateEditor = TemplateEditor(content)
-        self.mainLayout.addWidget(self.templateEditor)
+        self.innerLayout.addWidget(self.templateEditor)
 
         self.varWidget = variableWidget(content)
-        self.mainLayout.addWidget(self.varWidget)
+        self.innerLayout.addWidget(self.varWidget)
+        self.mainLayout.addLayout(self.innerLayout)
+
+        self.submit = Submit(text="Submit")
+        self.mainLayout.addWidget(self.submit)
+        
+        self.varWidget.send_to_widget = self.templateEditor.connect_line_edits
 
     def keyPressEvent(self, a0: QKeyEvent) -> None:
         if a0.key() == Qt.Key.Key_Return:

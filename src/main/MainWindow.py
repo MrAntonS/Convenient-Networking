@@ -85,10 +85,8 @@ class MainWindow(QMainWindow):
                 print(f"added function {entry} with {templates[entry]}")
 
         if templates_incom == None:
-            action = menu.addAction("Export")
+            action = menu.addAction("Import")
             action.triggered.connect(self.importTest)
-            share = menu.addAction("Share")
-            share.triggered.connect(self.shareTemplateTest)
         
     def initTemplateEditor(self, prompt):
         def initTemplateEditorInner():
@@ -110,7 +108,7 @@ class MainWindow(QMainWindow):
         print(sample_string1)
 
     def importTest(self):
-        appendToPickleFile({"Test1": {"Test_embed": "YAY {{test}}<br>{{testing}}", "ASDWQEQWEQWD": "Success"}}, 'templates.data')
+        appendToPickleFile({"Test1": {"Test_embed": "show {{first}}\nshow {{second|You can preset anything you want}}\nshow {{VRF}}", "ASDWQEQWEQWD": "Success"}}, 'templates.data')
         self.openTemplate.clear()
         self.initTemplateMenu()
 
