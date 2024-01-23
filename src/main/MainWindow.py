@@ -47,7 +47,7 @@ class MainWindow(QMainWindow):
         self.stopScrollingBtn = self.menu.addAction(
             "Stop scrolling to the bottom")
         
-        self.openTemplate.triggered.connect(self.ReadFile)
+        #self.openTemplate.triggered.connect(self.ReadFile)
         self.connectionBar.connectbtn.clicked.connect(self.AddNewTab)
         self.stopScrollingBtn.triggered.connect(self.stopScrolling)
         self.Colors = QPalette()
