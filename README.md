@@ -22,7 +22,7 @@ python -m pipenv install
 
 After that you should be able to just run
 ```
-pipenv run ./src/main/MainWindow.py
+pipenv run python ./src/main/MainWindow.py
 ```
 Or alternatively you could compile it to exe file
 ```
